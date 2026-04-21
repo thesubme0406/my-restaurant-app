@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BookingController;
 use App\Http\Controllers\QueueDashboardController;
 use App\Http\Middleware\EnsureStaffIsManager;
 use Illuminate\Foundation\Application;
@@ -32,6 +33,8 @@ Route::get('/dashboard', function () {
 })->middleware(['auth:staff,customer'])->name('dashboard');
 
 Route::middleware(['auth:staff'])->prefix('queue-dashboard')->name('queue-dashboard.')->group(function () {
+    Route::get('/bookings/lookup-customer-by-phone', [BookingController::class, 'lookupCustomerByPhone'])
+        ->name('bookings.lookup-customer-by-phone');
     Route::post('/queues', [QueueDashboardController::class, 'storeQueue'])->name('queues.store');
     Route::post('/queues/{booking}/skip', [QueueDashboardController::class, 'skipQueue'])->name('queues.skip');
     Route::post('/queues/{booking}/cancel', [QueueDashboardController::class, 'cancelQueue'])->name('queues.cancel');
