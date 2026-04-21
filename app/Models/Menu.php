@@ -12,10 +12,12 @@ class Menu extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'menus';
 
     protected $fillable = [
-        'catg_id',
+        'category_id',
         'name',
         'description',
         'image',
@@ -31,7 +33,7 @@ class Menu extends Model
 
     public function category(): BelongsTo
     {
-        return $this->belongsTo(MenuCatg::class, 'catg_id');
+        return $this->belongsTo(MenuCatg::class, 'category_id');
     }
 
     public function menuDetails(): HasMany

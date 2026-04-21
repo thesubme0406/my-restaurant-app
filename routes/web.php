@@ -1,7 +1,17 @@
 <?php
 
+use App\Http\Controllers\Admin\BuffetTierController;
+use App\Http\Controllers\Admin\IngredientController;
+use App\Http\Controllers\Admin\MasterDataController;
+use App\Http\Controllers\Admin\MenuCatgController;
+use App\Http\Controllers\Admin\MenuController;
+use App\Http\Controllers\Admin\NewsController;
+use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\SupplierController;
+use App\Http\Controllers\Admin\TableController;
 use App\Http\Controllers\BookingController;
 use App\Http\Controllers\QueueDashboardController;
+use App\Http\Controllers\StaffLookupController;
 use App\Http\Middleware\EnsureStaffIsManager;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Auth;
@@ -33,6 +43,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth:staff,customer'])->name('dashboard');
 
 Route::middleware(['auth:staff'])->prefix('queue-dashboard')->name('queue-dashboard.')->group(function () {
+    Route::get('/directory/staff-by-phone', StaffLookupController::class)->name('directory.staff-by-phone');
     Route::get('/bookings/lookup-customer-by-phone', [BookingController::class, 'lookupCustomerByPhone'])
         ->name('bookings.lookup-customer-by-phone');
     Route::post('/queues', [QueueDashboardController::class, 'storeQueue'])->name('queues.store');
@@ -79,9 +90,39 @@ Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')-
 
     Route::get('/dashboard', [QueueDashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/basic-info', function () {
-        return Inertia::render('Admin/BasicInfo');
-    })->name('basic-info');
+    Route::get('/master-data', MasterDataController::class)->name('master-data');
+    Route::get('/basic-info', fn () => redirect()->route('admin.master-data'))->name('basic-info');
+    Route::get('/profile', fn () => Inertia::render('Admin/Profile'))->name('profile');
+
+    Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+    Route::patch('/staff/{staff}', [StaffController::class, 'update'])->name('staff.update');
+    Route::delete('/staff/{staff}', [StaffController::class, 'destroy'])->name('staff.destroy');
+
+    Route::post('/buffet-tiers', [BuffetTierController::class, 'store'])->name('buffet-tiers.store');
+    /* POST + multipart is reliable for file fields; PATCH multipart can drop fields on some stacks. */
+    Route::match(['patch', 'post'], '/buffet-tiers/{buffetTier}', [BuffetTierController::class, 'update'])->name('buffet-tiers.update');
+    Route::delete('/buffet-tiers/{buffetTier}', [BuffetTierController::class, 'destroy'])->name('buffet-tiers.destroy');
+
+    Route::post('/menus', [MenuController::class, 'store'])->name('menus.store');
+    Route::match(['patch', 'post'], '/menus/{menu}', [MenuController::class, 'update'])->name('menus.update');
+    Route::delete('/menus/{menu}', [MenuController::class, 'destroy'])->name('menus.destroy');
+
+    Route::post('/menu-categories', [MenuCatgController::class, 'store'])->name('menu-categories.store');
+    Route::match(['patch', 'post'], '/menu-categories/{menuCatg}', [MenuCatgController::class, 'update'])->name('menu-categories.update');
+    Route::delete('/menu-categories/{menuCatg}', [MenuCatgController::class, 'destroy'])->name('menu-categories.destroy');
+
+    Route::post('/tables', [TableController::class, 'store'])->name('tables.store');
+    Route::patch('/tables/{table}', [TableController::class, 'update'])->name('tables.update');
+    Route::delete('/tables/{table}', [TableController::class, 'destroy'])->name('tables.destroy');
+    Route::post('/news', [NewsController::class, 'store'])->name('news.store');
+    Route::match(['patch', 'post'], '/news/{news}', [NewsController::class, 'update'])->name('news.update');
+    Route::delete('/news/{news}', [NewsController::class, 'destroy'])->name('news.destroy');
+    Route::post('/ingredients', [IngredientController::class, 'store'])->name('ingredients.store');
+    Route::patch('/ingredients/{ingredient}', [IngredientController::class, 'update'])->name('ingredients.update');
+    Route::delete('/ingredients/{ingredient}', [IngredientController::class, 'destroy'])->name('ingredients.destroy');
+    Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
+    Route::patch('/suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
+    Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
 
     Route::get('/inventory', function () {
         return Inertia::render('Admin/Inventory');

@@ -12,6 +12,8 @@ class Supplier extends Model
 
     protected $table = 'suppliers';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'sup_name',
         'contact_person',
