@@ -12,13 +12,24 @@ class StockIn extends Model
 {
     use HasFactory;
 
-    protected $table = 'stock_in';
+    protected $table = 'stock_ins';
+
+    public $timestamps = false;
 
     protected $fillable = [
         'po_id',
         'staff_id',
         'total_price',
+        'import_date',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'import_date' => 'datetime',
+            'total_price' => 'decimal:2',
+        ];
+    }
 
     public function purchaseOrder(): BelongsTo
     {
@@ -37,7 +48,7 @@ class StockIn extends Model
 
     public function ingredients(): BelongsToMany
     {
-        return $this->belongsToMany(Ingredient::class, 'stock_in_detail', 'imp_id', 'ing_id')
+        return $this->belongsToMany(Ingredient::class, 'stock_in_details', 'imp_id', 'ing_id')
             ->withPivot(['quantity', 'cost_price']);
     }
 }
