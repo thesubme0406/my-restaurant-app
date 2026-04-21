@@ -102,6 +102,7 @@ export default function AdminLayout({ children, title }) {
     const initials = auth?.user?.name ? auth.user.name.slice(0, 2).toUpperCase() : 'AD';
     const menus = auth?.is_staff_manager ? managerMenus : staffMenus;
     const headerTitle = resolveHeaderTitle(currentPath, menus, title);
+    const profileHref = auth?.is_staff_manager ? '/admin/profile' : '/staff/profile';
 
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
     const closeMobile = () => setMobileNavOpen(false);
@@ -189,12 +190,14 @@ export default function AdminLayout({ children, title }) {
                             >
                                 <Bell className="h-5 w-5" strokeWidth={1.75} />
                             </button>
-                            <div
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
+                            <Link
+                                href={profileHref}
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white transition hover:opacity-90"
                                 style={{ backgroundColor: brandBlue }}
+                                aria-label="ໄປຫາໜ້າໂປຣໄຟລ໌"
                             >
                                 {initials}
-                            </div>
+                            </Link>
                         </div>
                     </header>
                     <main className="flex-1 p-4 md:p-8">{children}</main>
