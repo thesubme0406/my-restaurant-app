@@ -13,7 +13,7 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['"Noto Sans Lao"', ...defaultTheme.fontFamily.sans],
                 lao: [
                     '"Noto Sans Lao"',
                     'Phetsarath OT',

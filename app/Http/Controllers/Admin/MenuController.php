@@ -17,6 +17,7 @@ class MenuController extends Controller
         $data = $request->validate([
             'category_id' => ['required', 'integer', 'exists:menu_catg,id'],
             'name' => ['required', 'string', 'max:25'],
+            'name_en' => ['nullable', 'string', 'max:60'],
             'description' => ['nullable', 'string', 'max:10000'],
             'image' => ['required', 'image', 'max:4096'],
             'is_active' => ['required', 'boolean'],
@@ -24,6 +25,10 @@ class MenuController extends Controller
 
         $data['image'] = $request->file('image')->store('menus', 'public');
         $data['description'] = $data['description'] ?? null;
+        $data['name_en'] = isset($data['name_en']) ? trim((string) $data['name_en']) : null;
+        if ($data['name_en'] === '') {
+            $data['name_en'] = null;
+        }
 
         Menu::query()->create($data);
 
@@ -35,12 +40,17 @@ class MenuController extends Controller
         $data = $request->validate([
             'category_id' => ['required', 'integer', 'exists:menu_catg,id'],
             'name' => ['required', 'string', 'max:25'],
+            'name_en' => ['nullable', 'string', 'max:60'],
             'description' => ['nullable', 'string', 'max:10000'],
             'image' => ['nullable', 'image', 'max:4096'],
             'is_active' => ['required', 'boolean'],
         ]);
 
         $data['description'] = $data['description'] ?? null;
+        $data['name_en'] = isset($data['name_en']) ? trim((string) $data['name_en']) : null;
+        if ($data['name_en'] === '') {
+            $data['name_en'] = null;
+        }
 
         if ($request->hasFile('image')) {
             if ($menu->image) {

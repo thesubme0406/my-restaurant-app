@@ -27,12 +27,17 @@ class BookingSeeder extends Seeder
             ['queue_no' => 'Q005', 'status' => 'confirmed', 'guest_count' => 6],
         ];
 
+        $queueDay = Carbon::now()->toDateString();
+
         foreach ($rows as $i => $row) {
             $customer = $customers[$i];
             $tier = $tiers[$i % $tiers->count()];
 
             Booking::query()->updateOrCreate(
-                ['queue_no' => $row['queue_no']],
+                [
+                    'queue_day' => $queueDay,
+                    'queue_no' => $row['queue_no'],
+                ],
                 [
                     'customer_id' => $customer->id,
                     'customer_name' => $customer->name,
@@ -41,6 +46,7 @@ class BookingSeeder extends Seeder
                     'table_id' => null,
                     'guest_count' => $row['guest_count'],
                     'expected_time' => Carbon::now()->addMinutes(($i + 1) * 20),
+                    'queue_day' => $queueDay,
                     'status' => $row['status'],
                     'skip_count' => 0,
                 ]

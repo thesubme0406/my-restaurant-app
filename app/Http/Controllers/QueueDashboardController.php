@@ -20,7 +20,7 @@ class QueueDashboardController extends Controller
      */
     private function waitlistStatuses(): array
     {
-        return ['waiting', 'pending'];
+        return ['waiting', 'pending', 'confirmed'];
     }
 
     public function index(): Response
@@ -190,15 +190,19 @@ class QueueDashboardController extends Controller
         $customerId = Customer::query()->where('phone', $data['phone'])->value('id');
 
         DB::transaction(function () use ($data, $customerId): void {
+            $expectedTime = now()->addHour();
+            $tempQueueNo = 'T'.str_replace('.', '', uniqid('', true));
+
             $booking = Booking::query()->create([
                 'customer_id' => $customerId !== null ? (int) $customerId : null,
                 'customer_name' => $data['customer_name'],
                 'phone' => $data['phone'],
                 'tier_id' => $data['tier_id'],
                 'table_id' => null,
-                'queue_no' => '_',
+                'queue_no' => $tempQueueNo,
+                'queue_day' => $expectedTime->toDateString(),
                 'guest_count' => $data['guest_count'],
-                'expected_time' => now()->addHour(),
+                'expected_time' => $expectedTime,
                 'status' => 'waiting',
                 'skip_count' => 0,
             ]);
@@ -284,7 +288,7 @@ class QueueDashboardController extends Controller
             ]);
         }
 
-        if (! in_array($booking->status, ['waiting', 'pending', 'skipped'], true)) {
+        if (! in_array($booking->status, ['waiting', 'pending', 'confirmed', 'skipped'], true)) {
             throw ValidationException::withMessages([
                 'booking' => 'ຄິວນີ້ບໍ່ສາມາດຂ້າມໄດ້.',
             ]);
@@ -299,7 +303,7 @@ class QueueDashboardController extends Controller
             ]);
         }
 
-        if (! in_array($booking->status, ['waiting', 'pending', 'skipped'], true)) {
+        if (! in_array($booking->status, ['waiting', 'pending', 'confirmed', 'skipped'], true)) {
             throw ValidationException::withMessages([
                 'booking' => 'ຄິວນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.',
             ]);

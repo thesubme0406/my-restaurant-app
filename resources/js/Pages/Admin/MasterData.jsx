@@ -1,10 +1,14 @@
+import BuffetTierMapping from '@/Components/MasterData/BuffetTierMapping';
 import ConfirmDialog from '@/Components/MasterData/ConfirmDialog';
 import GenericDataTable, { TablePackageNameCell } from '@/Components/MasterData/GenericDataTable';
 import GenericFormModal from '@/Components/MasterData/GenericFormModal';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { ChevronDown, Database, Pencil, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
+import { ChevronDown, Database, ListChecks, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Swal from 'sweetalert2';
+import 'sweetalert2/dist/sweetalert2.min.css';
 
 const primary = '#194c9f';
 
@@ -12,6 +16,7 @@ const primary = '#194c9f';
 export const MASTER_DATA_SECTIONS = [
     { value: 'staff', label: 'ຈັດການຂໍ້ມູນພະນັກງານ' },
     { value: 'buffet_menu', label: 'ຈັດການຂໍ້ມູນເມນູບຸບເຟ່' },
+    { value: 'tier_menu_binding', label: 'ຈັດການຜູກເມນູ' },
     { value: 'food_menu', label: 'ຈັດການຂໍ້ມູນລາຍການອາຫານ' },
     { value: 'food_categories', label: 'ຈັດການຂໍ້ມູນປະເພດອາຫານ' },
     { value: 'tables', label: 'ຈັດການຂໍ້ມູນໂຕະ' },
@@ -48,6 +53,13 @@ function formatJoined(iso) {
     } catch {
         return iso.slice(0, 10);
     }
+}
+
+function resolveTierBindingId(tiers, serverSelectedId) {
+    if (serverSelectedId != null && tiers.some((t) => Number(t.id) === Number(serverSelectedId))) {
+        return Number(serverSelectedId);
+    }
+    return tiers[0]?.id != null ? Number(tiers[0].id) : null;
 }
 
 function formatBuffetPrice(price) {
@@ -225,6 +237,10 @@ export default function MasterData({
     newsStaff,
     ingredients,
     suppliers,
+    tierLinkBuffetTiers = [],
+    tierLinkMenus = [],
+    tierMenuLinks = {},
+    selectedTierId: selectedTierIdFromServer = null,
 }) {
     const page = usePage();
     const pageErrors = page.props.errors ?? {};
@@ -246,6 +262,20 @@ export default function MasterData({
     const [menuEditing, setMenuEditing] = useState(null);
     const [menuDeleteTarget, setMenuDeleteTarget] = useState(null);
     const [menuDeleteBusy, setMenuDeleteBusy] = useState(false);
+
+    const tierBindingOptions = tierLinkBuffetTiers ?? [];
+    const tierBindingMenus = tierLinkMenus ?? [];
+    const tierBindingLinks = tierMenuLinks ?? {};
+    const tierBindingLinksRef = useRef(tierBindingLinks);
+    const [bindingTierId, setBindingTierId] = useState(() =>
+        initialSection === 'tier_menu_binding'
+            ? resolveTierBindingId(tierBindingOptions, selectedTierIdFromServer)
+            : null
+    );
+    const [bindingChecked, setBindingChecked] = useState(() => new Set());
+    const [bindingSaveBusy, setBindingSaveBusy] = useState(false);
+    const [tierPivotLoading, setTierPivotLoading] = useState(false);
+    const [viewSelectedOnly, setViewSelectedOnly] = useState(false);
 
     const [catgAddOpen, setCatgAddOpen] = useState(false);
     const [catgEditing, setCatgEditing] = useState(null);
@@ -270,6 +300,10 @@ export default function MasterData({
     const [supplierDeleteBusy, setSupplierDeleteBusy] = useState(false);
 
     useEffect(() => {
+        tierBindingLinksRef.current = tierBindingLinks;
+    }, [tierBindingLinks]);
+
+    useEffect(() => {
         setSection(initialSection || 'staff');
     }, [initialSection]);
 
@@ -278,6 +312,91 @@ export default function MasterData({
             setFoodMenuCategoryFilter('');
         }
     }, [section]);
+
+    useEffect(() => {
+        if (section !== 'tier_menu_binding') {
+            return;
+        }
+        if (tierBindingOptions.length === 0) {
+            setBindingTierId(null);
+            return;
+        }
+        setBindingTierId((prev) => {
+            if (prev != null && tierBindingOptions.some((t) => Number(t.id) === Number(prev))) {
+                return Number(prev);
+            }
+            return resolveTierBindingId(tierBindingOptions, selectedTierIdFromServer);
+        });
+    }, [section, tierBindingOptions, selectedTierIdFromServer]);
+
+    useEffect(() => {
+        if (section !== 'tier_menu_binding') {
+            setViewSelectedOnly(false);
+        }
+    }, [section]);
+
+    const loadTierMenuIds = useCallback(async (tierId) => {
+        if (tierId == null) {
+            return;
+        }
+        setTierPivotLoading(true);
+        try {
+            const { data } = await axios.get(route('admin.buffet-tier-menus.show', tierId), {
+                headers: { Accept: 'application/json' },
+            });
+            const ids = Array.isArray(data?.menu_ids) ? data.menu_ids.map((id) => Number(id)) : [];
+            setBindingChecked(new Set(ids));
+        } catch {
+            const links = tierBindingLinksRef.current ?? {};
+            const raw = links[tierId] ?? links[String(tierId)] ?? [];
+            setBindingChecked(new Set(raw));
+        } finally {
+            setTierPivotLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (section !== 'tier_menu_binding' || bindingTierId == null) {
+            return;
+        }
+        void loadTierMenuIds(bindingTierId);
+    }, [section, bindingTierId, loadTierMenuIds]);
+
+    const toggleTierMenuBinding = useCallback((menuId) => {
+        setBindingChecked((prev) => {
+            const next = new Set(prev);
+            if (next.has(menuId)) {
+                next.delete(menuId);
+            } else {
+                next.add(menuId);
+            }
+            return next;
+        });
+    }, []);
+
+    const saveTierMenuBinding = useCallback(() => {
+        if (bindingTierId == null) {
+            return;
+        }
+        setBindingSaveBusy(true);
+        router.put(route('admin.buffet-tier-menus.sync', bindingTierId), { menu_ids: Array.from(bindingChecked) }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                void Swal.fire({
+                    icon: 'success',
+                    title: 'ບັນທຶກການຜູກເມນູສຳເລັດແລ້ວ!',
+                    confirmButtonText: 'ຕົກລົງ',
+                    confirmButtonColor: primary,
+                    buttonsStyling: true,
+                    customClass: {
+                        popup: 'rounded-2xl',
+                        confirmButton: 'rounded-xl px-6 font-bold shadow-sm',
+                    },
+                });
+            },
+            onFinish: () => setBindingSaveBusy(false),
+        });
+    }, [bindingTierId, bindingChecked]);
 
     const staffRows = staff ?? [];
     const buffetRows = buffetTiers ?? [];
@@ -1876,6 +1995,122 @@ export default function MasterData({
                 />
             );
         }
+        if (section === 'tier_menu_binding') {
+            const selectedTier = tierBindingOptions.find((t) => Number(t.id) === Number(bindingTierId));
+            return (
+                <section className="rounded-2xl border border-slate-100 bg-white p-6 shadow-md shadow-slate-200/80 sm:p-8">
+                    <div className="flex flex-col gap-2 border-b border-slate-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold tracking-tight text-[#0f2744]">ການຜູກເມນູ</h2>
+                            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+                                ເລືອກປະເພດບຸບເຟ່ (ເຊັ່ນ Silver, Gold, Deluxe) ແລະ ເລືອກລາຍການອາຫານທີ່ລູກຄ້າຈະເຫັນໃນແອັບສຳລັບປະເພດນັ້ນເທົ່ານັ້ນ.
+                            </p>
+                        </div>
+                    </div>
+
+                    {tierBindingOptions.length === 0 ? (
+                        <p className="mt-8 text-center text-slate-600">
+                            ຍັງບໍ່ມີປະເພດບຸບເຟ່ — ເພີ່ມໃນພາກ «ຈັດການຂໍ້ມູນເມນູບຸບເຟ່» ກ່ອນ.
+                        </p>
+                    ) : (
+                        <>
+                            <div className="mt-6 max-w-md">
+                                <label htmlFor="tier-binding-select" className="block text-sm font-semibold text-slate-700">
+                                    ປະເພດບຸບເຟ່
+                                </label>
+                                <select
+                                    id="tier-binding-select"
+                                    className="mt-2 w-full cursor-pointer rounded-xl border border-slate-200 bg-white py-3 pl-4 pr-10 text-base font-semibold text-slate-800 shadow-sm outline-none transition focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/25 disabled:cursor-wait disabled:opacity-70"
+                                    value={bindingTierId ?? ''}
+                                    disabled={tierPivotLoading}
+                                    onChange={(e) => setBindingTierId(e.target.value ? Number(e.target.value) : null)}
+                                >
+                                    {tierBindingOptions.map((t) => (
+                                        <option key={t.id} value={t.id}>
+                                            {t.tier_name} — {formatBuffetPrice(t.price)}
+                                        </option>
+                                    ))}
+                                </select>
+                                {tierPivotLoading ? (
+                                    <p className="mt-2 flex items-center gap-2 text-xs font-medium text-[#194c9f]">
+                                        <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+                                        ກຳລັງໂຫຼດການຜູກເມນູຈາກຖານຂໍ້ມູນ…
+                                    </p>
+                                ) : null}
+                            </div>
+
+                            <div className="mt-8">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h3 className="text-base font-bold text-slate-900">
+                                            {viewSelectedOnly ? 'ເມນູທີ່ເລືອກໄວ້' : 'ລາຍການອາຫານທັງໝົດ'}
+                                        </h3>
+                                        <p className="mt-1 text-xs text-slate-500">
+                                            ລາຍການທັງໝົດ <span className="font-bold text-slate-700">{tierBindingMenus.length}</span>
+                                            {' · '}
+                                            ເລືອກແລ້ວສຳລັບປະເພດນີ້{' '}
+                                            <span className="font-bold text-[#194c9f]">{bindingChecked.size}</span>
+                                        </p>
+                                    </div>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewSelectedOnly((v) => !v)}
+                                            className={`inline-flex items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-bold shadow-sm transition ${
+                                                viewSelectedOnly
+                                                    ? 'border-[#194c9f] bg-[#194c9f] text-white'
+                                                    : 'border-[#194c9f]/30 bg-white text-[#194c9f] hover:border-[#194c9f] hover:bg-slate-50'
+                                            }`}
+                                        >
+                                            <ListChecks className="h-4 w-4 shrink-0" strokeWidth={2} aria-hidden />
+                                            ເບິ່ງເມນູທີ່ເລືອກໄວ້
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={saveTierMenuBinding}
+                                            disabled={bindingSaveBusy || bindingTierId == null || tierPivotLoading}
+                                            className="inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-sm transition disabled:opacity-50"
+                                            style={{ backgroundColor: primary }}
+                                        >
+                                            {bindingSaveBusy ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                                                    ກຳລັງບັນທຶກ…
+                                                </>
+                                            ) : (
+                                                'ບັນທຶກການຜູກເມນູ'
+                                            )}
+                                        </button>
+                                    </div>
+                                </div>
+                                {selectedTier ? (
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        ກຳລັງແກ້ໄຂ: <span className="font-semibold text-slate-700">{selectedTier.tier_name}</span>
+                                    </p>
+                                ) : null}
+
+                                {tierBindingMenus.length === 0 ? (
+                                    <p className="mt-6 text-center text-slate-600">
+                                        ຍັງບໍ່ມີລາຍການອາຫານ — ເພີ່ມໃນພາກ «ຈັດການຂໍ້ມູນລາຍການອາຫານ» ກ່ອນ.
+                                    </p>
+                                ) : (
+                                    <BuffetTierMapping
+                                        key={bindingTierId ?? 'none'}
+                                        menus={tierBindingMenus}
+                                        checked={bindingChecked}
+                                        onToggle={toggleTierMenuBinding}
+                                        viewSelectedOnly={viewSelectedOnly}
+                                        tierPivotLoading={tierPivotLoading}
+                                        bindingSaveBusy={bindingSaveBusy}
+                                        primaryColor={primary}
+                                    />
+                                )}
+                            </div>
+                        </>
+                    )}
+                </section>
+            );
+        }
         return (
             <GenericDataTable
                 title={MASTER_DATA_SECTIONS.find((s) => s.value === section)?.label ?? ''}
@@ -1933,6 +2168,15 @@ export default function MasterData({
                     {pageErrors?.supplier && (
                         <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-sm shadow-slate-200/40 sm:px-5">
                             {pageErrors.supplier}
+                        </div>
+                    )}
+                    {section === 'tier_menu_binding' && Object.keys(pageErrors).length > 0 && (
+                        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-sm shadow-slate-200/40 sm:px-5">
+                            <ul className="list-inside list-disc space-y-1">
+                                {Object.entries(pageErrors).map(([key, val]) => (
+                                    <li key={key}>{Array.isArray(val) ? val.join(' ') : String(val)}</li>
+                                ))}
+                            </ul>
                         </div>
                     )}
 

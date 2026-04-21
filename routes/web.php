@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\BuffetTierController;
+use App\Http\Controllers\Admin\BuffetTierMenuController;
 use App\Http\Controllers\Admin\IngredientController;
 use App\Http\Controllers\Admin\MasterDataController;
 use App\Http\Controllers\Admin\MenuCatgController;
@@ -16,6 +17,13 @@ use App\Http\Controllers\Admin\StockUsageController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\TableController;
 use App\Http\Controllers\BookingController;
+use App\Http\Controllers\Customer\CustomerAboutController;
+use App\Http\Controllers\Customer\CustomerContactController;
+use App\Http\Controllers\Customer\CustomerHomeController;
+use App\Http\Controllers\Customer\CustomerMenuController;
+use App\Http\Controllers\Customer\CustomerNewsController;
+use App\Http\Controllers\Customer\CustomerProfileController;
+use App\Http\Controllers\Customer\ReserveController;
 use App\Http\Controllers\QueueDashboardController;
 use App\Http\Controllers\StaffLookupController;
 use App\Http\Middleware\EnsureStaffIsManager;
@@ -60,10 +68,37 @@ Route::middleware(['auth:staff'])->prefix('queue-dashboard')->name('queue-dashbo
 });
 
 Route::middleware(['auth:customer'])->prefix('customer')->name('customer.')->group(function () {
-    Route::get('/dashboard', function () {
-        return Inertia::render('Customer/Dashboard');
-    })->name('dashboard');
+    Route::get('/home', CustomerHomeController::class)->name('home');
+
+    Route::get('/reserve', [ReserveController::class, 'index'])->name('reserve');
+    Route::get('/reserve/stats', [ReserveController::class, 'stats'])->name('reserve.stats');
+    Route::post('/reserve', [BookingController::class, 'store'])->name('reserve.store');
+    Route::patch('/reserve/{booking}/cancel', [BookingController::class, 'cancel'])->name('reserve.cancel');
+    Route::get('/reserve/new', function () {
+        return redirect()->route('customer.reserve');
+    })->name('reserve.new');
+
+    Route::get('/menu', [CustomerMenuController::class, 'index'])->name('menu');
+
+    Route::get('/news', [CustomerNewsController::class, 'index'])->name('news');
+    Route::get('/news/api/published', [CustomerNewsController::class, 'publishedApi'])->name('news.published-api');
+
+    Route::get('/contact', CustomerContactController::class)->name('contact');
+
+    Route::get('/about', CustomerAboutController::class)->name('about');
+
+    Route::get('/profile', [CustomerProfileController::class, 'edit'])->name('profile');
+    Route::patch('/profile', [CustomerProfileController::class, 'update'])->name('profile.update');
+
+    Route::get('/dashboard', CustomerHomeController::class)->name('dashboard');
 });
+
+Route::middleware(['auth:customer'])->get('/reserve', fn () => redirect()->route('customer.reserve'));
+Route::middleware(['auth:customer'])->get('/menu', fn () => redirect()->route('customer.menu'));
+Route::middleware(['auth:customer'])->get('/news', fn () => redirect()->route('customer.news'));
+Route::middleware(['auth:customer'])->get('/contact', fn () => redirect()->route('customer.contact'));
+Route::middleware(['auth:customer'])->get('/about', fn () => redirect()->route('customer.about'));
+Route::middleware(['auth:customer'])->get('/profile', fn () => redirect()->route('customer.profile'));
 
 Route::middleware(['auth:staff'])->prefix('staff')->name('staff.')->group(function () {
     Route::get('/dashboard', [QueueDashboardController::class, 'index'])->name('dashboard');
@@ -113,6 +148,8 @@ Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')-
     /* POST + multipart is reliable for file fields; PATCH multipart can drop fields on some stacks. */
     Route::match(['patch', 'post'], '/buffet-tiers/{buffetTier}', [BuffetTierController::class, 'update'])->name('buffet-tiers.update');
     Route::delete('/buffet-tiers/{buffetTier}', [BuffetTierController::class, 'destroy'])->name('buffet-tiers.destroy');
+    Route::get('/buffet-tiers/{buffetTier}/menus', [BuffetTierMenuController::class, 'menuIds'])->name('buffet-tier-menus.show');
+    Route::put('/buffet-tiers/{buffetTier}/menus', [BuffetTierMenuController::class, 'sync'])->name('buffet-tier-menus.sync');
 
     Route::post('/menus', [MenuController::class, 'store'])->name('menus.store');
     Route::match(['patch', 'post'], '/menus/{menu}', [MenuController::class, 'update'])->name('menus.update');

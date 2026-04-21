@@ -12,6 +12,7 @@ use App\Models\Staff;
 use App\Models\Supplier;
 use App\Models\Table;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,6 +30,7 @@ class MasterDataController extends Controller
             'news',
             'ingredients_master',
             'suppliers',
+            'tier_menu_binding',
         ];
         if (! is_string($section) || ! in_array($section, $allowed, true)) {
             $section = 'staff';
@@ -175,6 +177,7 @@ class MasterDataController extends Controller
                 ->map(fn (Menu $m): array => [
                     'id' => $m->id,
                     'name' => $m->name,
+                    'name_en' => $m->name_en,
                     'description' => $m->description ?? '',
                     'category_id' => $m->category_id,
                     'category_name' => $m->category?->catg_name ?? '',
@@ -182,6 +185,56 @@ class MasterDataController extends Controller
                     'image_url' => $m->image ? '/storage/'.ltrim($m->image, '/') : null,
                 ])
                 ->all();
+        }
+
+        $tierLinkBuffetTiers = [];
+        $tierLinkMenus = [];
+        $tierMenuLinks = [];
+        $selectedTierId = null;
+        if ($section === 'tier_menu_binding') {
+            $tierLinkBuffetTiers = BuffetTier::query()
+                ->orderBy('id')
+                ->get()
+                ->map(fn (BuffetTier $t): array => [
+                    'id' => $t->id,
+                    'tier_name' => $t->tier_name,
+                    'price' => (float) $t->price,
+                ])
+                ->all();
+
+            $tierLinkMenus = Menu::query()
+                ->with('category')
+                ->orderBy('category_id')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Menu $m): array => [
+                    'id' => $m->id,
+                    'name' => $m->name,
+                    'name_en' => $m->name_en,
+                    'description' => $m->description ?? '',
+                    'category_id' => $m->category_id,
+                    'category_name' => $m->category?->catg_name ?? '',
+                    'is_active' => (bool) $m->is_active,
+                    'image_url' => $m->image ? '/storage/'.ltrim($m->image, '/') : null,
+                ])
+                ->all();
+
+            $linkRows = DB::table('menu_detail')->select('buffet_tier_id', 'menu_id')->orderBy('menu_id')->get();
+            foreach ($linkRows as $row) {
+                $tid = (int) $row->buffet_tier_id;
+                if (! isset($tierMenuLinks[$tid])) {
+                    $tierMenuLinks[$tid] = [];
+                }
+                $tierMenuLinks[$tid][] = (int) $row->menu_id;
+            }
+
+            $tierIdParam = $request->query('tier_id');
+            if (is_numeric($tierIdParam)) {
+                $tid = (int) $tierIdParam;
+                if (BuffetTier::query()->whereKey($tid)->exists()) {
+                    $selectedTierId = $tid;
+                }
+            }
         }
 
         return Inertia::render('Admin/MasterData', [
@@ -196,6 +249,10 @@ class MasterDataController extends Controller
             'newsStaff' => $newsStaffOptions,
             'ingredients' => $ingredientRows,
             'suppliers' => $supplierRows,
+            'tierLinkBuffetTiers' => $tierLinkBuffetTiers,
+            'tierLinkMenus' => $tierLinkMenus,
+            'tierMenuLinks' => $tierMenuLinks,
+            'selectedTierId' => $selectedTierId,
         ]);
     }
 }

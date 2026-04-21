@@ -27,6 +27,9 @@ class HandleInertiaRequests extends Middleware
                 'user' => $this->resolveAuthUser($request),
                 'is_staff_manager' => $staff !== null && $staff->role === 'manager',
             ],
+            'flash' => [
+                'success' => $request->session()->get('success'),
+            ],
         ];
     }
 
