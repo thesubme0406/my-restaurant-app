@@ -168,6 +168,7 @@ class BuffetTierManagementTest extends TestCase
             'customer_id' => $customer->id,
             'tier_id' => $tier->id,
             'queue_no' => 'Q99',
+            'queue_day' => now()->toDateString(),
             'guest_count' => 2,
             'expected_time' => now(),
             'status' => 'pending',

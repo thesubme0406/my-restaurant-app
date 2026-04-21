@@ -29,6 +29,8 @@ class NewsController extends Controller
             $data['image'] = null;
         }
 
+        $data['published_at'] = $data['status'] === 'published' ? now() : null;
+
         News::query()->create($data);
 
         return redirect()->route('admin.master-data', ['section' => 'news']);
@@ -53,6 +55,10 @@ class NewsController extends Controller
             unset($data['image']);
         }
 
+        if ($data['status'] === 'published' && $news->status !== 'published') {
+            $data['published_at'] = now();
+        }
+
         $news->update($data);
 
         return redirect()->route('admin.master-data', ['section' => 'news']);
@@ -74,4 +80,3 @@ class NewsController extends Controller
         return redirect()->route('admin.master-data', ['section' => 'news']);
     }
 }
-

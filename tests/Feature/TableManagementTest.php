@@ -128,6 +128,7 @@ class TableManagementTest extends TestCase
             'tier_id' => $tier->id,
             'table_id' => $table->id,
             'queue_no' => 'Q001',
+            'queue_day' => now()->toDateString(),
             'guest_count' => 2,
             'expected_time' => now(),
             'status' => 'called',
@@ -155,4 +156,3 @@ class TableManagementTest extends TestCase
         $this->assertDatabaseHas('tables', ['id' => $table->id]);
     }
 }
-

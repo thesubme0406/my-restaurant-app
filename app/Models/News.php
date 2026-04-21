@@ -20,7 +20,15 @@ class News extends Model
         'image',
         'content',
         'status',
+        'published_at',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'published_at' => 'datetime',
+        ];
+    }
 
     public function staff(): BelongsTo
     {

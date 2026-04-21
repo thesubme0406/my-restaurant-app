@@ -22,6 +22,7 @@ class Booking extends Model
         'tier_id',
         'table_id',
         'queue_no',
+        'queue_day',
         'guest_count',
         'expected_time',
         'status',
@@ -32,6 +33,7 @@ class Booking extends Model
     {
         return [
             'expected_time' => 'datetime',
+            'queue_day' => 'date',
         ];
     }
 

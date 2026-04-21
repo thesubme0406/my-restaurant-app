@@ -10,9 +10,9 @@ class BuffetTierSeeder extends Seeder
     public function run(): void
     {
         $rows = [
-            ['tier_name' => 'Silver', 'price' => 299000, 'description' => 'Silver buffet package', 'image' => null],
-            ['tier_name' => 'Gold', 'price' => 399000, 'description' => 'Gold buffet package', 'image' => null],
-            ['tier_name' => 'Platinum', 'price' => 599000, 'description' => 'Platinum buffet package', 'image' => null],
+            ['tier_name' => 'Silver', 'price' => 299000, 'description' => 'ແພັກເກັດ Silver — ເຄື່ອງດື່ມ ແລະ ຂອງຫວານ ພ້ອມຊູຊິພື້ນຖານ.', 'image' => null],
+            ['tier_name' => 'Gold', 'price' => 460000, 'description' => 'ແພັກເກັດ Gold — ຄົບຊຸດ Silver ບວກຊູຊິທັງໝົດ.', 'image' => null],
+            ['tier_name' => 'Deluxe', 'price' => 850000, 'description' => 'ແພັກເກັດ Deluxe — ເມນູຄົບທຸກປະເພດ.', 'image' => null],
         ];
 
         foreach ($rows as $row) {
@@ -23,4 +23,3 @@ class BuffetTierSeeder extends Seeder
         }
     }
 }
-
