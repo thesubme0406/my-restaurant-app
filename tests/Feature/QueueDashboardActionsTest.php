@@ -348,4 +348,109 @@ class QueueDashboardActionsTest extends TestCase
             'status' => 'occupied',
         ]);
     }
+
+    public function test_lookup_customer_by_phone_prefers_latest_booking_name(): void
+    {
+        $staff = $this->actingStaff();
+        $ids = $this->seedTierTableCustomer();
+        $phone = '02012345001';
+
+        DB::table('bookings')->insertGetId([
+            'customer_id' => null,
+            'customer_name' => 'Older Visit',
+            'phone' => $phone,
+            'tier_id' => $ids['tier_id'],
+            'table_id' => null,
+            'queue_no' => 'QL001',
+            'guest_count' => 2,
+            'expected_time' => now()->addHour(),
+            'status' => 'completed',
+            'skip_count' => 0,
+        ]);
+        DB::table('bookings')->insertGetId([
+            'customer_id' => null,
+            'customer_name' => 'Newer Visit',
+            'phone' => $phone,
+            'tier_id' => $ids['tier_id'],
+            'table_id' => null,
+            'queue_no' => 'QL002',
+            'guest_count' => 2,
+            'expected_time' => now()->addHour(),
+            'status' => 'completed',
+            'skip_count' => 0,
+        ]);
+
+        $this->actingAs($staff, 'staff');
+
+        $this->getJson(route('queue-dashboard.bookings.lookup-customer-by-phone', ['phone' => $phone], absolute: false))
+            ->assertOk()
+            ->assertJson(['name' => 'Newer Visit', 'matched' => true]);
+    }
+
+    public function test_lookup_customer_by_phone_falls_back_to_customers_table(): void
+    {
+        $staff = $this->actingStaff();
+        $ids = $this->seedTierTableCustomer();
+        $phone = '02012345002';
+
+        DB::table('customers')->insert([
+            'phone' => $phone,
+            'name' => 'Registered Only',
+            'password' => Hash::make('password'),
+        ]);
+
+        $this->actingAs($staff, 'staff');
+
+        $this->getJson(route('queue-dashboard.bookings.lookup-customer-by-phone', ['phone' => $phone], absolute: false))
+            ->assertOk()
+            ->assertJson(['name' => 'Registered Only', 'matched' => true]);
+    }
+
+    public function test_lookup_customer_by_phone_requires_staff_auth(): void
+    {
+        $this->getJson(route('queue-dashboard.bookings.lookup-customer-by-phone', ['phone' => '02012345678'], absolute: false))
+            ->assertUnauthorized();
+    }
+
+    public function test_lookup_customer_by_phone_short_input_returns_unmatched(): void
+    {
+        $staff = $this->actingStaff();
+        $this->seedTierTableCustomer();
+
+        $this->actingAs($staff, 'staff');
+
+        $this->getJson(route('queue-dashboard.bookings.lookup-customer-by-phone', ['phone' => '12'], absolute: false))
+            ->assertOk()
+            ->assertJson(['name' => null, 'matched' => false]);
+    }
+
+    public function test_add_queue_links_existing_customer_by_phone(): void
+    {
+        $staff = $this->actingStaff();
+        $ids = $this->seedTierTableCustomer();
+        $phone = '02012345003';
+
+        $customerId = (int) DB::table('customers')->insertGetId([
+            'phone' => $phone,
+            'name' => 'Original',
+            'password' => Hash::make('password'),
+        ]);
+
+        $this->actingAs($staff, 'staff');
+
+        $this->post(route('queue-dashboard.queues.store', absolute: false), [
+            'customer_name' => 'Edited At Desk',
+            'phone' => $phone,
+            'guest_count' => 3,
+            'tier_id' => $ids['tier_id'],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertDatabaseHas('bookings', [
+            'customer_id' => $customerId,
+            'customer_name' => 'Edited At Desk',
+            'phone' => $phone,
+            'guest_count' => 3,
+            'status' => 'waiting',
+        ]);
+    }
 }

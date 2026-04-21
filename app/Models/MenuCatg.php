@@ -10,6 +10,8 @@ class MenuCatg extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'menu_catg';
 
     protected $fillable = [
@@ -19,6 +21,6 @@ class MenuCatg extends Model
 
     public function menus(): HasMany
     {
-        return $this->hasMany(Menu::class, 'catg_id');
+        return $this->hasMany(Menu::class, 'category_id');
     }
 }

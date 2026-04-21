@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\BuffetTier;
+use App\Models\Customer;
 use App\Models\Table;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -164,9 +165,11 @@ class QueueDashboardController extends Controller
             'guest_count.max' => 'ຈຳນວນຄົນສູງສຸດ 20 ທ່ານຕໍ່ຄິວ.',
         ]);
 
-        DB::transaction(function () use ($data): void {
+        $customerId = Customer::query()->where('phone', $data['phone'])->value('id');
+
+        DB::transaction(function () use ($data, $customerId): void {
             $booking = Booking::query()->create([
-                'customer_id' => null,
+                'customer_id' => $customerId !== null ? (int) $customerId : null,
                 'customer_name' => $data['customer_name'],
                 'phone' => $data['phone'],
                 'tier_id' => $data['tier_id'],

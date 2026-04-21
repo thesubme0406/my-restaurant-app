@@ -3,8 +3,11 @@ import QueueCard from '@/Components/QueueDashboard/QueueCard';
 import TableCard from '@/Components/QueueDashboard/TableCard';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Clock, LayoutGrid, ListOrdered, SkipForward, UserRound, Users } from 'lucide-react';
+
+const PHONE_LOOKUP_DEBOUNCE_MS = 320;
 
 const DASHBOARD_PARTIAL = ['stats', 'zones', 'queue', 'skippedQueue', 'buffetTiers', 'availableTables'];
 
@@ -191,6 +194,16 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
         tier_id: buffetTiers[0]?.id ?? '',
     });
 
+    const addFormDataRef = useRef(addForm.data);
+    addFormDataRef.current = addForm.data;
+
+    const [returningCustomerMatch, setReturningCustomerMatch] = useState(false);
+    const [phoneLookupLoading, setPhoneLookupLoading] = useState(false);
+    const nameFromPhoneLookupRef = useRef(false);
+    const phoneLookupDebounceRef = useRef(null);
+    const phoneLookupAbortRef = useRef(null);
+    const phoneLookupGenRef = useRef(0);
+
     const assignableQueue = useMemo(() => [...queue, ...skippedQueue], [queue, skippedQueue]);
 
     useEffect(() => {
@@ -204,6 +217,108 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
             setPairQueueToTable(null);
         }
     }, [queue, skippedQueue, pairQueueToTable]);
+
+    const cancelPhoneLookupDebounce = useCallback(() => {
+        if (phoneLookupDebounceRef.current !== null) {
+            clearTimeout(phoneLookupDebounceRef.current);
+            phoneLookupDebounceRef.current = null;
+        }
+    }, []);
+
+    const resetPhoneLookupState = useCallback(() => {
+        phoneLookupGenRef.current += 1;
+        cancelPhoneLookupDebounce();
+        phoneLookupAbortRef.current?.abort();
+        phoneLookupAbortRef.current = null;
+        setPhoneLookupLoading(false);
+        setReturningCustomerMatch(false);
+        nameFromPhoneLookupRef.current = false;
+    }, [cancelPhoneLookupDebounce]);
+
+    const runPhoneCustomerLookup = useCallback(
+        (digits) => {
+            phoneLookupAbortRef.current?.abort();
+            const controller = new AbortController();
+            phoneLookupAbortRef.current = controller;
+            const gen = ++phoneLookupGenRef.current;
+            setPhoneLookupLoading(true);
+
+            axios
+                .get(route('queue-dashboard.bookings.lookup-customer-by-phone'), {
+                    params: { phone: digits },
+                    signal: controller.signal,
+                })
+                .then(({ data }) => {
+                    if (gen !== phoneLookupGenRef.current) {
+                        return;
+                    }
+                    const name = typeof data?.name === 'string' ? data.name.trim() : '';
+                    const matched = Boolean(data?.matched && name !== '');
+
+                    if (matched) {
+                        const current = (addFormDataRef.current.customer_name ?? '').trim();
+                        if (current === '' || nameFromPhoneLookupRef.current) {
+                            addForm.setData('customer_name', name);
+                            nameFromPhoneLookupRef.current = true;
+                        }
+                        setReturningCustomerMatch(true);
+                    } else {
+                        if (nameFromPhoneLookupRef.current) {
+                            addForm.setData('customer_name', '');
+                        }
+                        nameFromPhoneLookupRef.current = false;
+                        setReturningCustomerMatch(false);
+                    }
+                })
+                .catch((err) => {
+                    if (gen !== phoneLookupGenRef.current || err?.code === 'ERR_CANCELED') {
+                        return;
+                    }
+                    setReturningCustomerMatch(false);
+                })
+                .finally(() => {
+                    if (gen !== phoneLookupGenRef.current) {
+                        return;
+                    }
+                    setPhoneLookupLoading(false);
+                });
+        },
+        [addForm]
+    );
+
+    const schedulePhoneCustomerLookup = useCallback(
+        (digits) => {
+            cancelPhoneLookupDebounce();
+            if (digits.length < 8) {
+                phoneLookupGenRef.current += 1;
+                phoneLookupAbortRef.current?.abort();
+                phoneLookupAbortRef.current = null;
+                setPhoneLookupLoading(false);
+                setReturningCustomerMatch(false);
+                nameFromPhoneLookupRef.current = false;
+                return;
+            }
+            phoneLookupDebounceRef.current = window.setTimeout(() => {
+                phoneLookupDebounceRef.current = null;
+                runPhoneCustomerLookup(digits);
+            }, PHONE_LOOKUP_DEBOUNCE_MS);
+        },
+        [cancelPhoneLookupDebounce, runPhoneCustomerLookup]
+    );
+
+    const flushPhoneCustomerLookup = useCallback(() => {
+        cancelPhoneLookupDebounce();
+        const digits = String(addFormDataRef.current.phone ?? '').replace(/\D/g, '');
+        if (digits.length >= 8 && digits.length <= 15) {
+            runPhoneCustomerLookup(digits);
+        }
+    }, [cancelPhoneLookupDebounce, runPhoneCustomerLookup]);
+
+    useEffect(() => {
+        if (!showAddQueue) {
+            resetPhoneLookupState();
+        }
+    }, [showAddQueue, resetPhoneLookupState]);
 
     const inertiaOpts = {
         preserveScroll: true,
@@ -226,6 +341,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
     const openAddQueue = () => {
         closeAllModals();
         setQueueDrawerOpen(false);
+        resetPhoneLookupState();
         const empty = emptyAddQueueForm(buffetTiers);
         addForm.setDefaults(empty);
         addForm.setData(empty);
@@ -266,6 +382,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
             ...inertiaOpts,
             onSuccess: () => {
                 setShowAddQueue(false);
+                resetPhoneLookupState();
                 const empty = emptyAddQueueForm(buffetTiers);
                 // Inertia updates form defaults to submitted values on success; setDefaults
                 // first so that does not run, then clear fields for the next add.
@@ -481,11 +598,21 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                     <form id="add-queue-form" onSubmit={submitAddQueue} className="space-y-4">
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
-                                <label className={labelClass}>ຊື່ລູກຄ້າ</label>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <label className={labelClass}>ຊື່ລູກຄ້າ</label>
+                                    {returningCustomerMatch && (
+                                        <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200">
+                                            Returning customer
+                                        </span>
+                                    )}
+                                </div>
                                 <input
                                     className={inputClass}
                                     value={addForm.data.customer_name}
-                                    onChange={(e) => addForm.setData('customer_name', e.target.value)}
+                                    onChange={(e) => {
+                                        nameFromPhoneLookupRef.current = false;
+                                        addForm.setData('customer_name', e.target.value);
+                                    }}
                                 />
                                 {addForm.errors.customer_name && (
                                     <p className="mt-1 text-xs text-rose-600">{addForm.errors.customer_name}</p>
@@ -506,7 +633,12 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                                 )}
                             </div>
                             <div className="sm:col-span-2">
-                                <label className={labelClass}>ເບີໂທລະສັບ</label>
+                                <div className="flex items-center justify-between gap-2">
+                                    <label className={labelClass}>ເບີໂທລະສັບ</label>
+                                    {phoneLookupLoading && (
+                                        <span className="text-[10px] font-medium text-slate-400">ກຳລັງຊອກ...</span>
+                                    )}
+                                </div>
                                 <input
                                     className={inputClass}
                                     inputMode="numeric"
@@ -514,9 +646,16 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                                     autoComplete="tel"
                                     placeholder="02012345678"
                                     value={addForm.data.phone}
-                                    onChange={(e) =>
-                                        addForm.setData('phone', e.target.value.replace(/\D/g, '').slice(0, 15))
-                                    }
+                                    onChange={(e) => {
+                                        const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
+                                        addForm.setData((prev) => ({
+                                            ...prev,
+                                            phone: digits,
+                                            customer_name: digits.length < 8 ? '' : prev.customer_name,
+                                        }));
+                                        schedulePhoneCustomerLookup(digits);
+                                    }}
+                                    onBlur={() => flushPhoneCustomerLookup()}
                                 />
                                 {addForm.errors.phone && (
                                     <p className="mt-1 text-xs text-rose-600">{addForm.errors.phone}</p>

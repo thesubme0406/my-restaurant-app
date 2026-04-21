@@ -13,6 +13,8 @@ class Ingredient extends Model
 
     protected $table = 'ingredients';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'ing_name',
         'ing_unit',
