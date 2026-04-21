@@ -12,9 +12,9 @@ class StaffSeeder extends Seeder
         Staff::query()->updateOrCreate(
             ['phone' => '02055551111'],
             [
-                'name' => 'ສົມຊາຍ',
-                'surname' => 'ພນລະວັນ',
-                'username' => 'oshinei_mgr',
+                'name' => 'Admin',
+                'surname' => 'User',
+                'username' => 'admin',
                 'password' => 'password',
                 'role' => 'manager',
                 'image' => null,
@@ -25,9 +25,22 @@ class StaffSeeder extends Seeder
         Staff::query()->updateOrCreate(
             ['phone' => '02055552222'],
             [
-                'name' => 'ຄຳແພງ',
-                'surname' => 'ວົງສະຫວັນ',
-                'username' => 'oshinei_stf',
+                'name' => 'Restaurant',
+                'surname' => 'Manager',
+                'username' => 'manager',
+                'password' => 'password',
+                'role' => 'manager',
+                'image' => null,
+                'address' => null,
+            ]
+        );
+
+        Staff::query()->updateOrCreate(
+            ['phone' => '02055553333'],
+            [
+                'name' => 'Front',
+                'surname' => 'Staff',
+                'username' => 'staff',
                 'password' => 'password',
                 'role' => 'staff',
                 'image' => null,

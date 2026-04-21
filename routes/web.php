@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\MasterDataController;
 use App\Http\Controllers\Admin\MenuCatgController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\NewsController;
+use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PurchaseController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StockInController;
@@ -80,9 +81,11 @@ Route::middleware(['auth:staff'])->prefix('staff')->name('staff.')->group(functi
     Route::get('/import', [StockInController::class, 'index'])->name('import');
     Route::post('/import', [StockInController::class, 'store'])->name('import.store');
 
-    Route::get('/payments', function () {
-        return Inertia::render('Admin/Payments');
-    })->name('payments');
+    Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
+    Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
+    Route::get('/payments/service-lookup', [PaymentController::class, 'lookupService'])->name('payments.lookup-service');
+    Route::get('/payments/active-services', [PaymentController::class, 'getActiveServices'])->name('payments.active-services');
+    Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
 });
 
 Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')->name('admin.')->group(function () {
@@ -137,9 +140,11 @@ Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')-
     Route::get('/import', [StockInController::class, 'index'])->name('import');
     Route::post('/import', [StockInController::class, 'store'])->name('import.store');
 
-    Route::get('/payments', function () {
-        return Inertia::render('Admin/Payments');
-    })->name('payments');
+    Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
+    Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
+    Route::get('/payments/service-lookup', [PaymentController::class, 'lookupService'])->name('payments.lookup-service');
+    Route::get('/payments/active-services', [PaymentController::class, 'getActiveServices'])->name('payments.active-services');
+    Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
 
     Route::get('/reports', function () {
         return Inertia::render('Admin/Reports');
