@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\PurchaseController;
+use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StockInController;
 use App\Http\Controllers\Admin\StockUsageController;
@@ -151,9 +152,8 @@ Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')-
     Route::get('/payments/active-services', [PaymentController::class, 'getActiveServices'])->name('payments.active-services');
     Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
 
-    Route::get('/reports', function () {
-        return Inertia::render('Admin/Reports');
-    })->name('reports');
+    Route::get('/reports', [ReportController::class, 'index'])->name('reports');
+    Route::get('/reports/data', [ReportController::class, 'data'])->name('reports.data');
 });
 
 require __DIR__.'/auth.php';
