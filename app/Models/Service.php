@@ -15,6 +15,8 @@ class Service extends Model
 
     protected $table = 'services';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'booking_id',
         'start_time',

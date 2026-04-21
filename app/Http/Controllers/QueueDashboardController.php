@@ -66,7 +66,13 @@ class QueueDashboardController extends Controller
      */
     private function zonesPayload(): array
     {
-        $tables = Table::query()->orderBy('zone')->orderBy('table_no')->get();
+        $tables = Table::query()
+            ->with([
+                'bookings' => fn ($q) => $q->with(['customer', 'buffetTier', 'services'])->latest('id'),
+            ])
+            ->orderBy('zone')
+            ->orderBy('table_no')
+            ->get();
 
         return $tables
             ->groupBy('zone')
@@ -75,12 +81,28 @@ class QueueDashboardController extends Controller
                 return [
                     'id' => $zone,
                     'title' => $zone === 'vip' ? 'ໂຊນ VIP' : 'ໂຊນທຳມະດາ',
-                    'tables' => $group->sortBy('table_no')->values()->map(fn (Table $t): array => [
-                        'id' => $t->id,
-                        'table_no' => $t->table_no,
-                        'capacity' => $t->capacity,
-                        'status' => $t->status,
-                    ])->all(),
+                    'tables' => $group->sortBy('table_no')->values()->map(function (Table $t): array {
+                        $activeBooking = $t->bookings
+                            ->first(fn (Booking $b) => in_array($b->status, ['called', 'confirmed', 'completed', 'finished'], true));
+                        $activeService = $activeBooking?->services->sortByDesc('id')->first();
+
+                        return [
+                            'id' => $t->id,
+                            'table_no' => $t->table_no,
+                            'capacity' => $t->capacity,
+                            'status' => $t->status,
+                            'occupied_detail' => $activeBooking ? [
+                                'booking_id' => $activeBooking->id,
+                                'queue_no' => $activeBooking->queue_no,
+                                'customer_name' => $activeBooking->customer_name ?? $activeBooking->customer?->name ?? '',
+                                'phone' => $activeBooking->phone ?? $activeBooking->customer?->phone ?? '',
+                                'guest_count' => $activeBooking->guest_count,
+                                'buffet_tier' => $activeBooking->buffetTier?->tier_name ?? '',
+                                'service_code' => $activeService?->service_code,
+                                'check_in_at' => $activeService?->start_time?->toIso8601String(),
+                            ] : null,
+                        ];
+                    })->all(),
                 ];
             })
             ->values()

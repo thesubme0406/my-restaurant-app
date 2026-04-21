@@ -186,6 +186,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
     const [pairQueueSelectedTableId, setPairQueueSelectedTableId] = useState('');
     const [pairTableToQueue, setPairTableToQueue] = useState(null);
     const [pairTableSelectedBookingId, setPairTableSelectedBookingId] = useState('');
+    const [occupiedDetail, setOccupiedDetail] = useState(null);
 
     const addForm = useForm({
         customer_name: '',
@@ -336,6 +337,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
         setShowAddQueue(false);
         setPairQueueToTable(null);
         setPairTableToQueue(null);
+        setOccupiedDetail(null);
     };
 
     const openAddQueue = () => {
@@ -373,7 +375,26 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
     const handleTableClick = (t) => {
         if (t.status === 'available') {
             openPairTableToQueue(t);
+            return;
         }
+        if (t.status === 'occupied' && t.occupied_detail) {
+            closeAllModals();
+            setOccupiedDetail({
+                table_no: t.table_no,
+                capacity: t.capacity,
+                ...t.occupied_detail,
+            });
+        }
+    };
+
+    const formatLocalDateTime = (value) => {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return '—';
+        return new Intl.DateTimeFormat(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        }).format(date);
     };
 
     const submitAddQueue = (e) => {
@@ -799,6 +820,36 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                                 </p>
                             ) : null}
                         </div>
+                    </div>
+                </DashboardModalShell>
+            )}
+
+            {occupiedDetail && (
+                <DashboardModalShell
+                    title="ລາຍລະອຽດໂຕະທີ່ກຳລັງໃຊ້ງານ"
+                    icon={Users}
+                    onClose={() => setOccupiedDetail(null)}
+                    footer={null}
+                >
+                    <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
+                        <p><span className="font-bold">ໂຕະ:</span> <span className="text-[#194c9f] font-semibold">{occupiedDetail.table_no}</span></p>
+                        <p><span className="font-bold">ຈຳນວນບ່ອນນັ່ງ:</span> {occupiedDetail.capacity}</p>
+                        <p><span className="font-bold">ລະຫັດຄິວ:</span> {occupiedDetail.queue_no ?? '—'}</p>
+                        <p><span className="font-bold">ລູກຄ້າ:</span> {occupiedDetail.customer_name ?? '—'}</p>
+                        <p><span className="font-bold">ເບີໂທ:</span> {occupiedDetail.phone ?? '—'}</p>
+                        <p><span className="font-bold">ຈຳນວນຄົນ:</span> {occupiedDetail.guest_count ?? '—'}</p>
+                        <p><span className="font-bold">ປະເພດບຸບເຟ້:</span> {occupiedDetail.buffet_tier ?? '—'}</p>
+                        <p><span className="font-bold">Service:</span> {occupiedDetail.service_code ?? '—'}</p>
+                        <p><span className="font-bold">ເວລາເຂົ້າໃຊ້:</span> {formatLocalDateTime(occupiedDetail.check_in_at)}</p>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                        <button
+                            type="button"
+                            onClick={() => setOccupiedDetail(null)}
+                            className="min-h-[40px] rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                            ປິດ
+                        </button>
                     </div>
                 </DashboardModalShell>
             )}
