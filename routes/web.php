@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\MenuCatgController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\PurchaseController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StockInController;
@@ -86,6 +87,9 @@ Route::middleware(['auth:staff'])->prefix('staff')->name('staff.')->group(functi
     Route::get('/payments/service-lookup', [PaymentController::class, 'lookupService'])->name('payments.lookup-service');
     Route::get('/payments/active-services', [PaymentController::class, 'getActiveServices'])->name('payments.active-services');
     Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
+
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+    Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });
 
 Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')->name('admin.')->group(function () {
@@ -97,7 +101,8 @@ Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')-
 
     Route::get('/master-data', MasterDataController::class)->name('master-data');
     Route::get('/basic-info', fn () => redirect()->route('admin.master-data'))->name('basic-info');
-    Route::get('/profile', fn () => Inertia::render('Admin/Profile'))->name('profile');
+    Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+    Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
 
     Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
     Route::patch('/staff/{staff}', [StaffController::class, 'update'])->name('staff.update');
