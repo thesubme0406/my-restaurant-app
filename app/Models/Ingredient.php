@@ -45,7 +45,7 @@ class Ingredient extends Model
 
     public function stockIns(): BelongsToMany
     {
-        return $this->belongsToMany(StockIn::class, 'stock_in_detail', 'ing_id', 'imp_id')
+        return $this->belongsToMany(StockIn::class, 'stock_in_details', 'ing_id', 'imp_id')
             ->withPivot(['quantity', 'cost_price']);
     }
 

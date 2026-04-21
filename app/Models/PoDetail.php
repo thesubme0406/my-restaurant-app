@@ -12,6 +12,8 @@ class PoDetail extends Model
 
     protected $table = 'po_detail';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'po_id',
         'ing_id',

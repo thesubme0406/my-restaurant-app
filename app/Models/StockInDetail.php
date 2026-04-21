@@ -10,7 +10,9 @@ class StockInDetail extends Model
 {
     use HasFactory;
 
-    protected $table = 'stock_in_detail';
+    protected $table = 'stock_in_details';
+
+    public $timestamps = false;
 
     protected $fillable = [
         'imp_id',

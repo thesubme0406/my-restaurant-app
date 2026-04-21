@@ -15,6 +15,8 @@ class PurchaseOrder extends Model
 
     protected $table = 'purchase_orders';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'staff_id',
         'sup_id',

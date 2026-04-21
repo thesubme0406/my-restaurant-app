@@ -12,6 +12,8 @@ class UsageDetail extends Model
 
     protected $table = 'usage_detail';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'usage_id',
         'ing_id',

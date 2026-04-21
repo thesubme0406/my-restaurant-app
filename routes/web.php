@@ -6,7 +6,10 @@ use App\Http\Controllers\Admin\MasterDataController;
 use App\Http\Controllers\Admin\MenuCatgController;
 use App\Http\Controllers\Admin\MenuController;
 use App\Http\Controllers\Admin\NewsController;
+use App\Http\Controllers\Admin\PurchaseController;
 use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\StockInController;
+use App\Http\Controllers\Admin\StockUsageController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\TableController;
 use App\Http\Controllers\BookingController;
@@ -66,17 +69,16 @@ Route::middleware(['auth:staff'])->prefix('staff')->name('staff.')->group(functi
         return Inertia::render('Admin/Test');
     })->name('test');
 
-    Route::get('/inventory', function () {
-        return Inertia::render('Admin/Inventory');
-    })->name('inventory');
+    Route::get('/inventory', [StockUsageController::class, 'index'])->name('inventory');
+    Route::post('/inventory', [StockUsageController::class, 'store'])->name('inventory.store');
+    Route::patch('/inventory/{usageDetail}', [StockUsageController::class, 'update'])->name('inventory.update');
+    Route::delete('/inventory/{usageDetail}', [StockUsageController::class, 'destroy'])->name('inventory.destroy');
 
-    Route::get('/purchase', function () {
-        return Inertia::render('Admin/Purchase');
-    })->name('purchase');
+    Route::get('/purchase', [PurchaseController::class, 'index'])->name('purchase');
+    Route::post('/purchase', [PurchaseController::class, 'store'])->name('purchase.store');
 
-    Route::get('/import', function () {
-        return Inertia::render('Admin/Import');
-    })->name('import');
+    Route::get('/import', [StockInController::class, 'index'])->name('import');
+    Route::post('/import', [StockInController::class, 'store'])->name('import.store');
 
     Route::get('/payments', function () {
         return Inertia::render('Admin/Payments');
@@ -124,17 +126,16 @@ Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')-
     Route::patch('/suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
     Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
 
-    Route::get('/inventory', function () {
-        return Inertia::render('Admin/Inventory');
-    })->name('inventory');
+    Route::get('/inventory', [StockUsageController::class, 'index'])->name('inventory');
+    Route::post('/inventory', [StockUsageController::class, 'store'])->name('inventory.store');
+    Route::patch('/inventory/{usageDetail}', [StockUsageController::class, 'update'])->name('inventory.update');
+    Route::delete('/inventory/{usageDetail}', [StockUsageController::class, 'destroy'])->name('inventory.destroy');
 
-    Route::get('/purchase', function () {
-        return Inertia::render('Admin/Purchase');
-    })->name('purchase');
+    Route::get('/purchase', [PurchaseController::class, 'index'])->name('purchase');
+    Route::post('/purchase', [PurchaseController::class, 'store'])->name('purchase.store');
 
-    Route::get('/import', function () {
-        return Inertia::render('Admin/Import');
-    })->name('import');
+    Route::get('/import', [StockInController::class, 'index'])->name('import');
+    Route::post('/import', [StockInController::class, 'store'])->name('import.store');
 
     Route::get('/payments', function () {
         return Inertia::render('Admin/Payments');

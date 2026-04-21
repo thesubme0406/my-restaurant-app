@@ -14,9 +14,12 @@ class StockUsage extends Model
 
     protected $table = 'stock_usage';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'staff_id',
         'usage_date',
+        'usage_detail',
     ];
 
     protected function casts(): array
