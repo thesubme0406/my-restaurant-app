@@ -2,8 +2,8 @@ import { Head, Link } from '@inertiajs/react';
 import { Clock, MapPin } from 'lucide-react';
 import CustomerLayout from '@/Layouts/CustomerLayout';
 
-/** OSHINEI brand blue for this page (per spec) */
-const BRAND = '#004085';
+// ສີຫຼັກ OSHINEI (#194c9f) ກົງກັບ admin
+const BRAND = '#194c9f';
 const BRAND_SOFT = '#7db7ff';
 
 function OshineiLogoMark() {

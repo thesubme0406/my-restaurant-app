@@ -1,3 +1,4 @@
+// ຕາຕະລາງລາຍງານ (ຫົວຕາຕະລາງສີຟ້າ OSHINEI)
 function defaultCell(value) {
     if (value === null || value === undefined || value === '') return '—';
     return value;
@@ -7,7 +8,7 @@ export default function GenericReportTable({ columns = [], rows = [] }) {
     return (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-[#1e3a8a] text-white">
+                <thead className="bg-[#194c9f] text-white">
                     <tr>
                         {columns.map((col) => (
                             <th key={col.key} className="px-3 py-2 text-left font-semibold">

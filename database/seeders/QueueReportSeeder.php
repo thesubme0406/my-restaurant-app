@@ -142,7 +142,7 @@ class QueueReportSeeder extends Seeder
                     'guest_count' => random_int(1, 8),
                     'expected_time' => $bookingAt->copy()->addMinutes(random_int(20, 60)),
                     'status' => 'skipped',
-                    'skip_count' => random_int(1, 2),
+                    'skip_count' => 1,
                 ];
                 if ($hasCreatedAt) {
                     $row['created_at'] = $bookingAt;

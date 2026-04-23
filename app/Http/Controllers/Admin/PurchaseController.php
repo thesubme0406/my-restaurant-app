@@ -57,6 +57,7 @@ class PurchaseController extends Controller
         abort_if($staffId === null, 403);
 
         DB::transaction(function () use ($data, $staffId): void {
+            // ສັ່ງຊື້ = ບັນທຶກ PO ຢ່າງດຽວ; ສະຕ໋ອກວັດຖຸດິບເພີ່ມຕອນນຳເຂົ້າ (StockIn) ເທົ່ານັ້ນ
             $po = PurchaseOrder::query()->create([
                 'staff_id' => $staffId,
                 'sup_id' => $data['sup_id'],
@@ -76,4 +77,3 @@ class PurchaseController extends Controller
         return redirect()->route('admin.purchase')->with('success', 'ບັນທຶກຄຳສັ່ງຊື້ສຳເລັດແລ້ວ');
     }
 }
-

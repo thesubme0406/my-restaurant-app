@@ -46,6 +46,7 @@ class BookingSeeder extends Seeder
                     'table_id' => null,
                     'guest_count' => $row['guest_count'],
                     'expected_time' => Carbon::now()->addMinutes(($i + 1) * 20),
+                    'queued_at' => Carbon::now()->addMinutes(($i + 1) * 20),
                     'queue_day' => $queueDay,
                     'status' => $row['status'],
                     'skip_count' => 0,

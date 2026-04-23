@@ -1,5 +1,7 @@
 <?php
 
+// ລະບົບທົດສອບຖືກຍ້າຍອອກເພື່ອ Refactor — ບໍ່ມີ tests/, phpunit, mockery, collision (ປ້ອງ artisan test ຊົນຫຼັງຖອນ PHPUnit).
+
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;

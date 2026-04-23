@@ -1,6 +1,8 @@
 import { X } from 'lucide-react';
 
-const HEADER_CLASS = 'flex items-center justify-between bg-[#0f2f5c] px-4 py-3.5 text-white';
+// ຫົວ modal ແຜງຄິວ — ສີຟ້າ #194c9f
+const HEADER_CLASS =
+    'flex items-center justify-between bg-[#194c9f] px-4 py-3.5 font-sans text-white';
 
 export default function DashboardModalShell({ title, icon: Icon, onClose, children, footer }) {
     return (
@@ -31,8 +33,10 @@ export default function DashboardModalShell({ title, icon: Icon, onClose, childr
                         <X className="h-5 w-5" strokeWidth={2} />
                     </button>
                 </div>
-                <div className="border-t border-slate-200/80 bg-white px-4 py-5 sm:px-6">{children}</div>
-                {footer ? <div className="border-t border-slate-200 bg-slate-50/80 px-4 py-4 sm:px-6">{footer}</div> : null}
+                <div className="border-t border-slate-200/80 bg-white px-4 py-5 font-sans sm:px-6">{children}</div>
+                {footer ? (
+                    <div className="border-t border-slate-200 bg-slate-50/80 px-4 py-4 font-sans sm:px-6">{footer}</div>
+                ) : null}
             </div>
         </div>
     );
@@ -63,7 +67,7 @@ export function ModalFooterActions({
                     type="submit"
                     form={submitFormId}
                     disabled={primaryDisabled || primaryLoading}
-                    className="min-h-[44px] min-w-[120px] rounded-lg bg-[#0f2f5c] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0c274d] disabled:opacity-55"
+                    className="min-h-[44px] min-w-[120px] rounded-lg bg-[#194c9f] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#153d85] disabled:opacity-55"
                 >
                     {primaryLoading ? primaryLoadingLabel : primaryLabel}
                 </button>
@@ -72,7 +76,7 @@ export function ModalFooterActions({
                     type="button"
                     onClick={onPrimary}
                     disabled={primaryDisabled || primaryLoading}
-                    className="min-h-[44px] min-w-[120px] rounded-lg bg-[#0f2f5c] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#0c274d] disabled:opacity-55"
+                    className="min-h-[44px] min-w-[120px] rounded-lg bg-[#194c9f] px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#153d85] disabled:opacity-55"
                 >
                     {primaryLoading ? primaryLoadingLabel : primaryLabel}
                 </button>

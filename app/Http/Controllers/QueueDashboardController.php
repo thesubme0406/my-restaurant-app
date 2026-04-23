@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\Booking;
 use App\Models\BuffetTier;
 use App\Models\Customer;
+use App\Models\Service;
 use App\Models\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,14 +15,50 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
+// ແຜງຄິວ + ໂຕະ (Inertia partial reload)
 class QueueDashboardController extends Controller
 {
-    /**
-     * @return list<string>
-     */
+    /** ຂ້າມຄົບຈຳນວນນີ້ → ຍົກເລີກຄິວອັດຕະໂນມັດ (ອອກຈາກແຜງ «ຂ້າມແລ້ວ»). */
+    private const AUTO_CANCEL_AFTER_SKIP_COUNT = 2;
+
+    /** @var array<int, Service>|null ບໍລິການ in_service ຍັງບໍ່ຊຳລະ ຕໍ່ໂຕະ (ແຄຊຕໍ່ request). */
+    private ?array $activeUnpaidServiceMapCache = null;
+
+    // ສະຖານະທີ່ນັບເປັນ «ລໍຖ້າ» ໃນຄິວ
     private function waitlistStatuses(): array
     {
         return ['waiting', 'pending', 'confirmed'];
+    }
+
+    /**
+     * ແຜ່ງໂຕະ → ບໍລິການທີ່ຍັງເປີດຢູ່ (in_service, ຍັງບໍ່ມີ payment).
+     * ໃຊ້ກຳນົດສີແດງ «ມີລູກຄ້າ» — ບໍ່ສັບສົນກັບ readiness (ໂຕະພ້ອມ/ປິດປັບປຸງໃນຮ້ານ).
+     *
+     * @return array<int, Service>
+     */
+    private function activeUnpaidServiceByTableId(): array
+    {
+        if ($this->activeUnpaidServiceMapCache !== null) {
+            return $this->activeUnpaidServiceMapCache;
+        }
+
+        $map = [];
+        $services = Service::query()
+            ->with(['booking.customer', 'booking.buffetTier', 'serviceDetails'])
+            ->where('status', 'in_service')
+            ->whereDoesntHave('payment')
+            ->get();
+
+        foreach ($services as $service) {
+            foreach ($service->serviceDetails as $detail) {
+                $tableId = (int) $detail->table_id;
+                if ($tableId > 0 && ! isset($map[$tableId])) {
+                    $map[$tableId] = $service;
+                }
+            }
+        }
+
+        return $this->activeUnpaidServiceMapCache = $map;
     }
 
     public function index(): Response
@@ -35,41 +73,49 @@ class QueueDashboardController extends Controller
         ]);
     }
 
-    /**
-     * @return array{
-     *     totalCapacity: int,
-     *     availableTables: int,
-     *     occupiedTables: int,
-     *     waitingQueue: int,
-     *     skippedQueue: int
-     * }
-     */
+    // ຕົວເລກໂຕະ + ຄິວ (ແຜງເທິງ)
     private function stats(): array
     {
+        // ເຊັກຈຳນວນໂຕະຫວ່າງ/ມີລູກຄ້າຈາກບໍລິການ in_service ຈິງ — ບໍ່ໃຊ້ usage_status ເພື່ອບໍ່ສັບສົນກັບ readiness (ປິດປັບປຸງ).
+        $occupiedIds = array_keys($this->activeUnpaidServiceByTableId());
+        $vacantReadyQuery = Table::query()->where('readiness', 'ready');
+        if ($occupiedIds !== []) {
+            $vacantReadyQuery->whereNotIn('id', $occupiedIds);
+        }
+
         return [
             'totalCapacity' => (int) Table::query()->sum('capacity'),
-            'availableTables' => Table::query()->where('status', 'available')->count(),
-            'occupiedTables' => Table::query()->where('status', 'occupied')->count(),
-            'waitingQueue' => Booking::query()
-                ->whereIn('status', $this->waitlistStatuses())
-                ->whereNull('table_id')
-                ->count(),
-            'skippedQueue' => Booking::query()
-                ->where('status', 'skipped')
-                ->whereNull('table_id')
-                ->count(),
+            'availableTables' => (int) $vacantReadyQuery->count(),
+            'occupiedTables' => count($occupiedIds),
+            // ນັບຄິວລໍຖ້າ: ແຕ່ລະແຖວ = 1 ຄິວ (ບໍ່ຊ້ຳກັບຄິວອື່ນ).
+            'waitingQueue' => (int) $this->waitingBookingsForDashboard()->count(),
+            // ນັບຈຳນວນຄິວທີ່ຖືກຂ້າມ: ແຕ່ລະແຖວ = 1 ຄິວ (ບໍ່ນັບຕາມ skip_count ຫຼາຍຄັ້ງ).
+            'skippedQueue' => (int) $this->skippedBookingsForDashboard()->count(),
         ];
     }
 
-    /**
-     * @return list<array{id: string, title: string, tables: list<array<string, mixed>>}>
-     */
+    /** ຄິວລໍຖ້າໃນແຜງ (ສະຖານະລໍຖ້າ + ຍັງບໍ່ມີໂຕະ) — ໃຊ້ຮ່ວມກັນທັງນັບແລະລາຍການເພື່ອບໍ່ຊ້ຳ/ບໍ່ຂາດ. */
+    private function waitingBookingsForDashboard(): Builder
+    {
+        return Booking::query()
+            ->whereIn('status', $this->waitlistStatuses())
+            ->whereNull('table_id');
+    }
+
+    /** ຄິວທີ່ຂ້າມແລ້ວໃນແຜງ — ແຖວດຽວຕໍ່ຄົນ, ບໍ່ນັບຫຼາຍຄັ້ງຈາກ skip_count. */
+    private function skippedBookingsForDashboard(): Builder
+    {
+        return Booking::query()
+            ->where('status', 'skipped')
+            ->whereNull('table_id');
+    }
+
+    // ໂຕະຈັດຕາມໂຊນ — ສີແດງ/ຂຽວ/ເທົາ: maintenance=readiness not_ready, ມີລູກຄ້າ=ມີ in_service ບໍ່ຊຳລະ, ຫວ່າງ=ທີ່ເຫຼືອ
     private function zonesPayload(): array
     {
+        $serviceByTable = $this->activeUnpaidServiceByTableId();
+
         $tables = Table::query()
-            ->with([
-                'bookings' => fn ($q) => $q->with(['customer', 'buffetTier', 'services'])->latest('id'),
-            ])
             ->orderBy('zone')
             ->orderBy('table_no')
             ->get();
@@ -77,30 +123,54 @@ class QueueDashboardController extends Controller
         return $tables
             ->groupBy('zone')
             ->filter(fn ($group) => $group->isNotEmpty())
-            ->map(function ($group, string $zone): array {
+            ->map(function ($group, string $zone) use ($serviceByTable): array {
                 return [
                     'id' => $zone,
                     'title' => $zone === 'vip' ? 'ໂຊນ VIP' : 'ໂຊນທຳມະດາ',
-                    'tables' => $group->sortBy('table_no')->values()->map(function (Table $t): array {
-                        $activeBooking = $t->bookings
-                            ->first(fn (Booking $b) => in_array($b->status, ['called', 'confirmed', 'completed', 'finished'], true));
-                        $activeService = $activeBooking?->services->sortByDesc('id')->first();
+                    'tables' => $group->sortBy('table_no')->values()->map(function (Table $t) use ($serviceByTable): array {
+                        $readiness = $t->readiness ?? 'ready';
+                        // ເຊັກສະຖານະກົງຈິງ: ປິດປັບປຸງ (ຮ່າງກາຍ) ກ່ອນ; ບໍ່ດັ່ງນັ້ນເບິ່ງບໍລິການຄ້າງຊຳລະ.
+                        if ($readiness === 'not_ready') {
+                            return [
+                                'id' => $t->id,
+                                'table_no' => $t->table_no,
+                                'capacity' => $t->capacity,
+                                'readiness' => $readiness,
+                                'status' => 'maintenance',
+                                'occupied_detail' => null,
+                            ];
+                        }
+
+                        $svc = $serviceByTable[$t->id] ?? null;
+                        if ($svc !== null) {
+                            $activeBooking = $svc->booking;
+
+                            return [
+                                'id' => $t->id,
+                                'table_no' => $t->table_no,
+                                'capacity' => $t->capacity,
+                                'readiness' => $readiness,
+                                'status' => 'occupied',
+                                'occupied_detail' => $activeBooking ? [
+                                    'booking_id' => $activeBooking->id,
+                                    'queue_no' => $activeBooking->queue_no,
+                                    'customer_name' => $activeBooking->customer_name ?? $activeBooking->customer?->name ?? '',
+                                    'phone' => $activeBooking->phone ?? $activeBooking->customer?->phone ?? '',
+                                    'guest_count' => $activeBooking->guest_count,
+                                    'buffet_tier' => $activeBooking->buffetTier?->tier_name ?? '',
+                                    'service_code' => $svc->service_code,
+                                    'check_in_at' => $svc->start_time?->toIso8601String(),
+                                ] : null,
+                            ];
+                        }
 
                         return [
                             'id' => $t->id,
                             'table_no' => $t->table_no,
                             'capacity' => $t->capacity,
-                            'status' => $t->status,
-                            'occupied_detail' => $activeBooking ? [
-                                'booking_id' => $activeBooking->id,
-                                'queue_no' => $activeBooking->queue_no,
-                                'customer_name' => $activeBooking->customer_name ?? $activeBooking->customer?->name ?? '',
-                                'phone' => $activeBooking->phone ?? $activeBooking->customer?->phone ?? '',
-                                'guest_count' => $activeBooking->guest_count,
-                                'buffet_tier' => $activeBooking->buffetTier?->tier_name ?? '',
-                                'service_code' => $activeService?->service_code,
-                                'check_in_at' => $activeService?->start_time?->toIso8601String(),
-                            ] : null,
+                            'readiness' => $readiness,
+                            'status' => 'available',
+                            'occupied_detail' => null,
                         ];
                     })->all(),
                 ];
@@ -109,39 +179,33 @@ class QueueDashboardController extends Controller
             ->all();
     }
 
-    /**
-     * @return list<array<string, mixed>>
-     */
+    // ຄິວລໍຖ້າ (ຍັງບໍ່ມີໂຕະ) — ລຽງ FIFO: ເກົ່າສຸດຢູ່ເທິງ, ໃໝ່ສຸດຢູ່ລຸ່ມ (queued_at ↑, id ↑)
     private function waitingQueuePayload(): array
     {
-        return Booking::query()
+        return $this->waitingBookingsForDashboard()
             ->with(['customer', 'buffetTier'])
-            ->whereIn('status', $this->waitlistStatuses())
-            ->whereNull('table_id')
+            ->orderByRaw('case when queued_at is null then 1 else 0 end')
+            ->orderBy('queued_at')
             ->orderBy('id')
             ->get()
             ->map(fn (Booking $b): array => $this->queueEntry($b))
             ->all();
     }
 
-    /**
-     * @return list<array<string, mixed>>
-     */
+    // ຄິວທີ່ຂ້າມແລ້ວ — FIFO ດຽວກັບຄິວລໍຖ້າ (ເກົ່າສຸດເທິງ)
     private function skippedQueuePayload(): array
     {
-        return Booking::query()
+        return $this->skippedBookingsForDashboard()
             ->with(['customer', 'buffetTier'])
-            ->where('status', 'skipped')
-            ->whereNull('table_id')
+            ->orderByRaw('case when queued_at is null then 1 else 0 end')
+            ->orderBy('queued_at')
             ->orderBy('id')
             ->get()
             ->map(fn (Booking $b): array => $this->queueEntry($b))
             ->all();
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    // ແຖວຄິວໃຫ້ໜ້າ React
     private function queueEntry(Booking $b): array
     {
         return [
@@ -152,16 +216,21 @@ class QueueDashboardController extends Controller
             'phone' => $b->phone ?? $b->customer?->phone ?? '',
             'buffet_type' => $b->buffetTier->tier_name,
             'skip_count' => (int) ($b->skip_count ?? 0),
+            'queued_at' => $b->queued_at?->toIso8601String(),
         ];
     }
 
-    /**
-     * @return list<array{id: int, table_no: string, capacity: int, zone: string}>
-     */
+    // ໂຕະຫວ່າງ (ເລືອກຕອນຈັບຄິວ): ພ້ອມໃຊ້ງານ + ບໍ່ມີບໍລິການຄ້າງຊຳລະເທິ່ງໂຕະນີ້
     private function availableTablesPayload(): array
     {
-        return Table::query()
-            ->where('status', 'available')
+        $occupiedIds = array_keys($this->activeUnpaidServiceByTableId());
+        $q = Table::query()
+            ->where('readiness', 'ready');
+        if ($occupiedIds !== []) {
+            $q->whereNotIn('id', $occupiedIds);
+        }
+
+        return $q
             ->orderBy('zone')
             ->orderBy('table_no')
             ->get()
@@ -191,7 +260,8 @@ class QueueDashboardController extends Controller
 
         DB::transaction(function () use ($data, $customerId): void {
             $expectedTime = now()->addHour();
-            $tempQueueNo = 'T'.str_replace('.', '', uniqid('', true));
+            // queue_no ຈຳກັດ 10 ຕົວໃນ DB — ບໍ່ໃຊ້ uniqid ຍາວ; ຄ່າຊົ່ວຄາວສັ້ນ ກ່ອນປ່ຽນເປັນ Q+id ຫຼັງ insert.
+            $tempQueueNo = 'T'.strtoupper(substr(bin2hex(random_bytes(5)), 0, 9));
 
             $booking = Booking::query()->create([
                 'customer_id' => $customerId !== null ? (int) $customerId : null,
@@ -203,6 +273,7 @@ class QueueDashboardController extends Controller
                 'queue_day' => $expectedTime->toDateString(),
                 'guest_count' => $data['guest_count'],
                 'expected_time' => $expectedTime,
+                'queued_at' => now(),
                 'status' => 'waiting',
                 'skip_count' => 0,
             ]);
@@ -219,8 +290,16 @@ class QueueDashboardController extends Controller
     {
         $this->ensureSkippable($booking);
 
-        $booking->increment('skip_count');
-        $booking->update(['status' => 'skipped']);
+        DB::transaction(function () use ($booking): void {
+            $booking->increment('skip_count');
+            $booking->refresh();
+
+            if ((int) $booking->skip_count >= self::AUTO_CANCEL_AFTER_SKIP_COUNT) {
+                $booking->update(['status' => 'cancelled']);
+            } else {
+                $booking->update(['status' => 'skipped']);
+            }
+        });
 
         return back();
     }
@@ -237,10 +316,10 @@ class QueueDashboardController extends Controller
     public function updateTableStatus(Request $request, Table $table): RedirectResponse
     {
         $data = $request->validate([
-            'status' => ['required', 'string', 'in:available,occupied,maintenance'],
+            'status' => ['required', 'string', 'in:available,occupied'],
         ]);
 
-        $table->update(['status' => $data['status']]);
+        $table->update(['usage_status' => $data['status']]);
 
         return back();
     }
@@ -257,9 +336,16 @@ class QueueDashboardController extends Controller
 
         $this->ensureAssignableForTable($booking);
 
-        if ($table->status !== 'available') {
+        if ($table->readiness !== 'ready') {
             throw ValidationException::withMessages([
-                'table_id' => 'ໂຕະນີ້ບໍ່ວ່າງ.',
+                'table_id' => 'ໂຕະນີ້ບໍ່ພ້ອມໃຊ້ງານ.',
+            ]);
+        }
+
+        // ເຊັກວ່າໂຕະຫວ່າງຕາມບໍລິການ (ບໍ່ໃຊ້ usage_status ຢ່າງດຽວ) ເພື່ອບໍ່ສັບສົນກັບສະຖານະຮ່າງກາຍໂຕະ.
+        if ($table->hasActiveUnpaidService()) {
+            throw ValidationException::withMessages([
+                'table_id' => 'ໂຕະນີ້ມີລູກຄ້າ/ບໍລິການຢູ່ແລ້ວ.',
             ]);
         }
 
@@ -270,11 +356,13 @@ class QueueDashboardController extends Controller
         }
 
         DB::transaction(function () use ($booking, $table): void {
-            $table->update(['status' => 'occupied']);
+            $table->update(['usage_status' => 'occupied']);
             $booking->update([
                 'table_id' => $table->id,
                 'status' => 'called',
             ]);
+            $booking->refresh();
+            Service::ensureOpenSessionForSeatedBooking($booking);
         });
 
         return back();
@@ -310,9 +398,7 @@ class QueueDashboardController extends Controller
         }
     }
 
-    /**
-     * Waiting, pending, or skipped (no table yet) may be seated.
-     */
+    // ກວດວ່າຄິວນີ້ນັ່ງໂຕະໄດ້ (ລໍຖ້າ / ຂ້າມ, ຍັງບໍ່ມີໂຕະ)
     private function ensureAssignableForTable(Booking $booking): void
     {
         if ($booking->table_id !== null) {

@@ -1,24 +1,25 @@
-import { Armchair } from 'lucide-react';
+import { AlertTriangle, Armchair } from 'lucide-react';
 
+// ສີໂຕະແຜງຄິວ: available=ຫວ່າງ+ພ້ອມ, occupied=ມີບໍລິການຄ້າງຊຳລະ, maintenance=ໂຕະປິດ/ຊຳຮຸດ (readiness)
 const statusConfig = {
     available: {
-        label: 'ໂຕະວ່າງ',
+        label: 'ໂຕະວ່າງ (ພ້ອມນັ່ງ)',
         bar: 'bg-emerald-500',
         ring: 'ring-emerald-200/80',
         text: 'text-emerald-800',
         subtle: 'text-emerald-700/90',
     },
     occupied: {
-        label: 'ໂຕະຖືກໃຊ້ງານ',
+        label: 'ໂຕະຖືກໃຊ້ງານ (ມີລູກຄ້າ)',
         bar: 'bg-rose-500',
         ring: 'ring-rose-200/80',
         text: 'text-rose-900',
         subtle: 'text-rose-800/90',
     },
     maintenance: {
-        label: 'ກຳລັງປັບປຸງ/ອື່ນໆ',
+        label: 'ປິດປັບປຸງ / ບໍ່ພ້ອມໃຊ້',
         bar: 'bg-slate-400',
-        ring: 'ring-slate-200/80',
+        ring: 'ring-amber-200/80',
         text: 'text-slate-700',
         subtle: 'text-slate-600',
     },
@@ -50,7 +51,11 @@ export default function TableCard({ table, onClick }) {
                     <div
                         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-50 text-slate-600 transition group-hover:bg-white group-hover:shadow-sm ${cfg.text}`}
                     >
-                        <Armchair className="h-5 w-5" strokeWidth={1.75} />
+                        {table.status === 'maintenance' ? (
+                            <AlertTriangle className="h-5 w-5 text-amber-600" strokeWidth={1.75} />
+                        ) : (
+                            <Armchair className="h-5 w-5" strokeWidth={1.75} />
+                        )}
                     </div>
                 </div>
                 <p className="mt-3 text-sm font-medium text-slate-700">

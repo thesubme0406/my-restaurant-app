@@ -1,11 +1,12 @@
+// ໂປຣໄຟລ໌ພະນັກງານ + ປ່ຽນລະຫັດ
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Eye, EyeOff, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
-const primary = '#1e3a8a';
+const primary = '#194c9f';
 const inputClass =
-    'mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]';
+    'mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[#194c9f] focus:ring-1 focus:ring-[#194c9f]';
 const lockedClass =
     'mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600';
 
@@ -13,6 +14,8 @@ export default function Profile({ profile }) {
     const page = usePage();
     const pageErrors = page.props.errors ?? {};
     const flashSuccess = page.props.flash?.success;
+    const isManager = Boolean(page.props.auth?.is_staff_manager);
+    const profileUpdateRoute = isManager ? 'admin.profile.update' : 'staff.profile.update';
 
     const [open, setOpen] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -93,7 +96,7 @@ export default function Profile({ profile }) {
     const submitFinalSave = () => {
         if (!pendingChanges || saving) return;
         setSaving(true);
-        router.post(route('admin.profile.update'), pendingChanges, {
+        router.post(route(profileUpdateRoute), pendingChanges, {
             preserveScroll: true,
             forceFormData: true,
             onFinish: () => setSaving(false),

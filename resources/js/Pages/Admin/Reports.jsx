@@ -1,8 +1,19 @@
+// ລາຍງານ: ໜ້າກາງ (orchestrator) ທີ່ຮວບຮວມ filter + table + summary
 import AdminLayout from '@/Layouts/AdminLayout';
 import GenericReportTable from '@/Components/Reports/GenericReportTable';
 import { Head } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { formatAmount } from '@/utils/formatAmount';
+import ReportFilterBar from './Reports/ReportFilterBar';
+import ReportSummarySection from './Reports/ReportSummarySection';
+import { getIncomeColumns } from './Reports/IncomeReport';
+import { getQueueStatisticsColumns } from './Reports/QueueStatisticsReport';
+import { getQueueBookingColumns } from './Reports/QueueBookingReport';
+import { getMenuColumns } from './Reports/MenuReport';
+import { getIngredientUsageColumns } from './Reports/IngredientUsageReport';
+import { getIngredientPurchaseColumns } from './Reports/IngredientPurchaseReport';
+import { getIngredientImportColumns } from './Reports/IngredientImportReport';
 
 const reportOptions = [
     { value: 'income', label: 'ລາຍງານລາຍຮັບ' },
@@ -11,6 +22,7 @@ const reportOptions = [
     { value: 'menu', label: 'ລາຍງານຂໍ້ມູນເມນູ' },
     { value: 'ingredient_usage', label: 'ລາຍງານການໃຊ້ວັດຖຸດິບ' },
     { value: 'ingredient_purchase', label: 'ລາຍງານການສັ່ງຊື້ວັດຖຸດິບ' },
+    { value: 'ingredient_import', label: 'ລາຍງານນຳເຂົ້າວັດຖຸດິບ' },
 ];
 
 const menuStatusOptions = [
@@ -19,9 +31,46 @@ const menuStatusOptions = [
     { value: 'inactive', label: 'ເມນູປິດໃຊ້ງານ' },
 ];
 
+const paymentMethodOptions = [
+    { value: 'all', label: 'ທຸກວິທີ' },
+    { value: 'cash', label: 'ເງິນສົດ' },
+    { value: 'transfer', label: 'ເງິນໂອນ' },
+];
+
+const queueStatusFilterOptions = [
+    { value: 'all', label: 'ສະຫຼຸບຕໍ່ມື້ (ທຸກສະຖານະ)' },
+    { value: 'completed', label: 'ສະເພາະຄິວສຳເລັດ' },
+    { value: 'skipped', label: 'ສະເພາະຄິວຂ້າມ' },
+    { value: 'cancelled', label: 'ສະເພາະຄິວຍົກເລີກ' },
+    { value: 'other', label: 'ສະເພາະສະຖານະອື່ນ' },
+];
+
+const purchaseStatusOptions = [
+    { value: 'all', label: 'ສະຖານະທັງໝົດ' },
+    { value: 'pending', label: 'ກຳລັງລໍຖ້າ' },
+    { value: 'received', label: 'ເຄື່ອງເຂົ້າແລ້ວ' },
+];
+
+const filterButtonClass =
+    'inline-flex h-10 shrink-0 items-center justify-center rounded-xl px-4 text-sm font-semibold shadow-sm transition font-sans';
+
+function defaultReportFromDate() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}-01`;
+}
+
+function defaultReportToDate() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 function moneyKip(v) {
-    const n = Number(v || 0);
-    return `${n.toLocaleString('en-US')} KIP`;
+    return `${formatAmount(v ?? 0)} KIP`;
 }
 
 export default function ReportsPage({
@@ -31,204 +80,96 @@ export default function ReportsPage({
     initialStatusFilter,
     initialCategoryId,
     menuCategories = [],
+    buffetTiers = [],
+    supplierOptions = [],
+    initialPaymentMethod = 'all',
+    initialTierId = 'all',
+    initialQueueStatus = 'all',
+    initialSearchQuery = '',
+    initialPurchaseStatus = 'all',
+    initialSupplierId = 'all',
     initialRows = [],
     initialSummary = {},
 }) {
+    // ສະຖານະ filter ກາງ
     const [reportType, setReportType] = useState(initialType ?? 'income');
     const [from, setFrom] = useState(initialFrom ?? '');
     const [to, setTo] = useState(initialTo ?? '');
     const [statusFilter, setStatusFilter] = useState(initialStatusFilter ?? 'all');
     const [categoryId, setCategoryId] = useState(initialCategoryId ?? 'all');
+    const [paymentMethod, setPaymentMethod] = useState(initialPaymentMethod ?? 'all');
+    const [tierId, setTierId] = useState(initialTierId ?? 'all');
+    const [queueStatus, setQueueStatus] = useState(initialQueueStatus ?? 'all');
+    const [searchQuery, setSearchQuery] = useState(initialSearchQuery ?? '');
+    const [purchaseStatus, setPurchaseStatus] = useState(initialPurchaseStatus ?? 'all');
+    const [supplierId, setSupplierId] = useState(initialSupplierId ?? 'all');
+
+    // ຂໍ້ມູນຜົນລັບ
     const [rows, setRows] = useState(initialRows);
     const [summary, setSummary] = useState(initialSummary);
     const [loading, setLoading] = useState(false);
-    const isMenuReport = reportType === 'menu';
 
-    const incomeColumns = useMemo(
-        () => [
-            { key: 'index', header: '#', cell: (_row, idx) => idx + 1 },
-            { key: 'payment_time', header: 'ວັນທີ/ເວລາ' },
-            { key: 'payment_id', header: 'ເລກທີບິນ' },
-            { key: 'table_no', header: 'ໂຕະ' },
-            { key: 'tier_name', header: 'Tier' },
-            { key: 'guest_count', header: 'ຈຳນວນລູກຄ້າ' },
-            {
-                key: 'method',
-                header: 'ວິທີຊຳລະ',
-                cell: (row) => (row.method === 'cash' ? 'Cash' : row.method === 'transfer' ? 'Transfer' : row.method),
-            },
-            { key: 'total_amount', header: 'ຍອດລວມ', cell: (row) => moneyKip(row.total_amount) },
-        ],
-        []
-    );
+    const columns = useMemo(() => {
+        if (reportType === 'income') return getIncomeColumns();
+        if (reportType === 'queue_statistics') return getQueueStatisticsColumns(queueStatus);
+        if (reportType === 'queue_booking') return getQueueBookingColumns();
+        if (reportType === 'menu') return getMenuColumns();
+        if (reportType === 'ingredient_usage') return getIngredientUsageColumns();
+        if (reportType === 'ingredient_purchase') return getIngredientPurchaseColumns();
+        if (reportType === 'ingredient_import') return getIngredientImportColumns();
+        return [{ key: 'message', header: 'ລາຍງານ', cell: () => 'Coming soon' }];
+    }, [reportType, queueStatus]);
 
-    const queueColumns = useMemo(
-        () => [
-            { key: 'index', header: '#', cell: (_row, idx) => idx + 1 },
-            { key: 'queue_no', header: 'ເລກຄິວ' },
-            { key: 'customer_name', header: 'ຊື່ລູກຄ້າ' },
-            { key: 'guest_count', header: 'ຈຳນວນຄົນ' },
-            { key: 'booking_time', header: 'ເວລາຈອງ' },
-            {
-                key: 'estimated_wait_minutes',
-                header: 'ເວລາລໍຖ້າໂດຍປະມານ',
-                cell: (row) => (row.estimated_wait_minutes == null ? '—' : `${row.estimated_wait_minutes} ນາທີ`),
-            },
-            {
-                key: 'actual_wait_minutes',
-                header: 'ເວລາລໍຖ້າຕົວຈິງ',
-                cell: (row) => (row.actual_wait_minutes == null ? 'N/A' : `${row.actual_wait_minutes} ນາທີ`),
-            },
-            {
-                key: 'status',
-                header: 'ສະຖານະ',
-                cell: (row) => {
-                    const s = row.status;
-                    if (s === 'completed' || s === 'finished' || s === 'called') {
-                        return <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">ສຳເລັດ</span>;
-                    }
-                    if (s === 'skipped') {
-                        return <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">ຂ້າມຄິວ</span>;
-                    }
-                    if (s === 'cancelled') {
-                        return <span className="inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">ຍົກເລີກ</span>;
-                    }
-                    return <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{s}</span>;
-                },
-            },
-        ],
-        []
-    );
-
-    const bookingColumns = useMemo(
-        () => [
-            { key: 'index', header: '#', cell: (_row, idx) => idx + 1 },
-            { key: 'booking_date', header: 'ວັນທີຈອງ' },
-            { key: 'expected_time', header: 'ເວລາຄາດການ' },
-            { key: 'customer_name', header: 'ຊື່ລູກຄ້າ' },
-            { key: 'guest_count', header: 'ຈຳນວນຄົນ' },
-            { key: 'tier_name', header: 'Buffet Tier' },
-            { key: 'phone', header: 'ເບີໂທລະສັບ' },
-            {
-                key: 'status',
-                header: 'ສະຖານະ',
-                cell: (row) => {
-                    const s = row.status;
-                    if (s === 'pending' || s === 'waiting') {
-                        return <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Pending</span>;
-                    }
-                    if (s === 'confirmed' || s === 'called' || s === 'checked-in') {
-                        return <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Confirmed</span>;
-                    }
-                    if (s === 'cancelled') {
-                        return <span className="inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">Cancelled</span>;
-                    }
-                    return <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">{s || '—'}</span>;
-                },
-            },
-        ],
-        []
-    );
-
-    const menuColumns = useMemo(
-        () => [
-            {
-                key: 'image_url',
-                header: 'ຮູບພາບ',
-                cell: (row) =>
-                    row.image_url ? (
-                        <img src={row.image_url} alt={row.menu_name} className="h-10 w-10 rounded-md object-cover" />
-                    ) : (
-                        <div className="h-10 w-10 rounded-md bg-slate-200" />
-                    ),
-            },
-            { key: 'menu_code', header: 'ລະຫັດເມນູ' },
-            { key: 'menu_name', header: 'ຊື່ເມນູ' },
-            { key: 'category_name', header: 'ປະເພດອາຫານ' },
-            {
-                key: 'status_label',
-                header: 'ສະຖານະເມນູ',
-                cell: (row) =>
-                    row.is_active ? (
-                        <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">ເປີດໃຊ້ງານ</span>
-                    ) : (
-                        <span className="inline-flex rounded-full bg-rose-100 px-2.5 py-1 text-xs font-semibold text-rose-700">ປິດໃຊ້ງານ</span>
-                    ),
-            },
-        ],
-        []
-    );
-
-    const usageColumns = useMemo(
-        () => [
-            { key: 'ingredient_name', header: 'ຊື່ວັດຖຸດິບ' },
-            { key: 'usage_date', header: 'ວັນທີນຳໃຊ້' },
-            { key: 'used_qty', header: 'ຈຳນວນທີ່ໃຊ້' },
-            { key: 'unit', header: 'ຫົວໜ່ວຍ' },
-            { key: 'remaining_qty', header: 'ຈຳນວນຄົງເຫຼືອ', cell: (row) => `${row.remaining_qty ?? 0} ${row.unit ?? ''}`.trim() },
-            { key: 'staff_name', header: 'ຊື່ພະນັກງານ (ຜູ້ບັນທຶກການໃຊ້)' },
-        ],
-        []
-    );
-
-    const purchaseColumns = useMemo(
-        () => [
-            { key: 'purchase_code', header: 'ລະຫັດຄຳສັ່ງຊື້' },
-            { key: 'purchase_date', header: 'ວັນທີ' },
-            { key: 'supplier_name', header: 'ຊື່ຜູ້ສະໜອງ' },
-            { key: 'total_price', header: 'ລາຄາລວມ', cell: (row) => `${Number(row.total_price ?? 0).toLocaleString('en-US')} ກີບ` },
-            {
-                key: 'po_status_label',
-                header: 'ສະຖານະ PO',
-                cell: (row) => {
-                    if (row.po_status === 'Received' || row.po_status === 'Completed') {
-                        return <span className="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">ເຄື່ອງເຂົ້າແລ້ວ</span>;
-                    }
-                    if (row.po_status === 'Ordered') {
-                        return <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">ກຳລັງຈັດສົ່ງ</span>;
-                    }
-                    return <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">ກຳລັງລໍຖ້າ</span>;
-                },
-            },
-            { key: 'buyer_name', header: 'ຊື່ພະນັກງານ (ຜູ້ຊື້)' },
-        ],
-        []
-    );
-
-    const columns =
-        reportType === 'income'
-            ? incomeColumns
-            : reportType === 'queue_statistics'
-              ? queueColumns
-              : reportType === 'queue_booking'
-                ? bookingColumns
-                : reportType === 'menu'
-                  ? menuColumns
-                  : reportType === 'ingredient_usage'
-                    ? usageColumns
-                    : reportType === 'ingredient_purchase'
-                      ? purchaseColumns
-              : [{ key: 'message', header: 'ລາຍງານ', cell: () => 'Coming soon' }];
-
-    const fetchReport = (nextType = reportType, nextFrom = from, nextTo = to, nextStatus = statusFilter, nextCategory = categoryId) => {
+    // ຮວບພາຣາມິເຕີສົ່ງຫາ backend
+    const fetchReport = (
+        nextType = reportType,
+        nextFrom = from,
+        nextTo = to,
+        nextStatus = statusFilter,
+        nextCategory = categoryId,
+        nextPaymentMethod = paymentMethod,
+        nextTierId = tierId,
+        nextQueueStatus = queueStatus,
+        nextSearchQuery = searchQuery,
+        nextPurchaseStatus = purchaseStatus,
+        nextSupplierId = supplierId
+    ) => {
         setLoading(true);
         const paramsObj = { type: nextType, _ts: String(Date.now()) };
+
         if (nextType === 'menu') {
             paramsObj.status_filter = nextStatus;
             paramsObj.category_id = nextCategory;
+            paramsObj.tier_id = nextTierId;
+            paramsObj.from = nextFrom;
+            paramsObj.to = nextTo;
+            paramsObj.search_query = nextSearchQuery;
         } else {
             paramsObj.from = nextFrom;
             paramsObj.to = nextTo;
+            if (nextType === 'income') {
+                paramsObj.payment_method = nextPaymentMethod;
+                paramsObj.tier_id = nextTierId;
+            }
+            if (nextType === 'queue_statistics') {
+                paramsObj.queue_status = nextQueueStatus;
+            }
+            if (nextType === 'ingredient_purchase') {
+                paramsObj.purchase_status = nextPurchaseStatus;
+                paramsObj.supplier_id = nextSupplierId;
+            }
+            if (nextType === 'ingredient_import') {
+                paramsObj.supplier_id = nextSupplierId;
+            }
         }
+
         const params = new URLSearchParams(paramsObj);
         fetch(`${route('admin.reports.data')}?${params.toString()}`, {
             headers: { Accept: 'application/json' },
             cache: 'no-store',
         })
             .then((res) => {
-                if (!res.ok) {
-                    throw new Error(`Report fetch failed: ${res.status}`);
-                }
+                if (!res.ok) throw new Error(`Report fetch failed: ${res.status}`);
                 return res.json();
             })
             .then((data) => {
@@ -242,23 +183,57 @@ export default function ReportsPage({
             .finally(() => setLoading(false));
     };
 
+    const refetch = (patch = {}) =>
+        fetchReport(
+            patch.reportType ?? reportType,
+            patch.from ?? from,
+            patch.to ?? to,
+            patch.statusFilter ?? statusFilter,
+            patch.categoryId ?? categoryId,
+            patch.paymentMethod ?? paymentMethod,
+            patch.tierId ?? tierId,
+            patch.queueStatus ?? queueStatus,
+            patch.searchQuery ?? searchQuery,
+            patch.purchaseStatus ?? purchaseStatus,
+            patch.supplierId ?? supplierId
+        );
+
+    const onPatch = (patch) => {
+        if (Object.prototype.hasOwnProperty.call(patch, 'from')) setFrom(patch.from);
+        if (Object.prototype.hasOwnProperty.call(patch, 'to')) setTo(patch.to);
+        if (Object.prototype.hasOwnProperty.call(patch, 'statusFilter')) setStatusFilter(patch.statusFilter);
+        if (Object.prototype.hasOwnProperty.call(patch, 'categoryId')) setCategoryId(patch.categoryId);
+        if (Object.prototype.hasOwnProperty.call(patch, 'paymentMethod')) setPaymentMethod(patch.paymentMethod);
+        if (Object.prototype.hasOwnProperty.call(patch, 'tierId')) setTierId(patch.tierId);
+        if (Object.prototype.hasOwnProperty.call(patch, 'queueStatus')) setQueueStatus(patch.queueStatus);
+        if (Object.prototype.hasOwnProperty.call(patch, 'searchQuery')) setSearchQuery(patch.searchQuery);
+        if (Object.prototype.hasOwnProperty.call(patch, 'purchaseStatus')) setPurchaseStatus(patch.purchaseStatus);
+        if (Object.prototype.hasOwnProperty.call(patch, 'supplierId')) setSupplierId(patch.supplierId);
+        refetch(patch);
+    };
+
     const onChangeReportType = (nextType) => {
         setReportType(nextType);
         setRows([]);
         setSummary({});
-        fetchReport(nextType, from, to, statusFilter, categoryId);
+        fetchReport(nextType, from, to, statusFilter, categoryId, paymentMethod, tierId, queueStatus, searchQuery, purchaseStatus, supplierId);
     };
 
-    const resetFilter = () => {
-        setReportType('income');
-        setFrom('');
-        setTo('');
+    const onReset = () => {
+        const nextFrom = defaultReportFromDate();
+        const nextTo = defaultReportToDate();
+        setFrom(nextFrom);
+        setTo(nextTo);
         setStatusFilter('all');
         setCategoryId('all');
-        fetchReport('income', '', '');
+        setPaymentMethod('all');
+        setTierId('all');
+        setQueueStatus('all');
+        setSearchQuery('');
+        setPurchaseStatus('all');
+        setSupplierId('all');
+        fetchReport(reportType, nextFrom, nextTo, 'all', 'all', 'all', 'all', 'all', '', 'all', 'all');
     };
-
-    const printReport = () => window.print();
 
     const exportCsv = () => {
         if (!rows.length) return;
@@ -282,178 +257,49 @@ export default function ReportsPage({
     return (
         <AdminLayout title="ລາຍງານ">
             <Head title="ລາຍງານ" />
-            <div className="-mx-4 -mt-2 bg-slate-50 px-4 pb-12 pt-4 md:-mx-8 md:px-8 md:pb-14 md:pt-6">
+            <div className="-mx-4 -mt-2 bg-slate-50 px-4 pb-12 pt-4 font-sans md:-mx-8 md:px-8 md:pb-14 md:pt-6">
                 <div className="mx-auto max-w-7xl space-y-4">
-                    <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-200/80">
-                        <div className={`grid gap-3 ${isMenuReport ? 'md:grid-cols-[240px_200px_220px_auto_auto]' : 'md:grid-cols-[240px_1fr_1fr_auto_auto]'} md:items-end`}>
-                            <div>
-                                <label className="text-sm font-semibold text-slate-700">ເລືອກປະເພດລາຍງານ</label>
-                                <select
-                                    value={reportType}
-                                    onChange={(e) => onChangeReportType(e.target.value)}
-                                    className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]"
-                                >
-                                    {reportOptions.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            {isMenuReport ? (
-                                <>
-                                    <div>
-                                        <label className="text-sm font-semibold text-slate-700">ກອງຂໍ້ມູນ</label>
-                                        <select
-                                            value={statusFilter}
-                                            onChange={(e) => setStatusFilter(e.target.value)}
-                                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]"
-                                        >
-                                            {menuStatusOptions.map((opt) => (
-                                                <option key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-semibold text-slate-700">ປະເພດອາຫານ</label>
-                                        <select
-                                            value={categoryId}
-                                            onChange={(e) => setCategoryId(e.target.value)}
-                                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]"
-                                        >
-                                            <option value="all">ເລືອກທັງໝົດ</option>
-                                            {menuCategories.map((cat) => (
-                                                <option key={cat.id} value={String(cat.id)}>
-                                                    {cat.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div>
-                                        <label className="text-sm font-semibold text-slate-700">ຕັ້ງແຕ່</label>
-                                        <input
-                                            type="date"
-                                            value={from}
-                                            onChange={(e) => setFrom(e.target.value)}
-                                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="text-sm font-semibold text-slate-700">ຫາ</label>
-                                        <input
-                                            type="date"
-                                            value={to}
-                                            onChange={(e) => setTo(e.target.value)}
-                                            className="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-[#1e3a8a] focus:ring-1 focus:ring-[#1e3a8a]"
-                                        />
-                                    </div>
-                                </>
-                            )}
-                            <button
-                                type="button"
-                                onClick={() => fetchReport()}
-                                disabled={loading}
-                                className="rounded-xl bg-[#1e3a8a] px-4 py-2.5 text-sm font-semibold text-white shadow-sm disabled:opacity-60"
-                            >
-                                {loading ? 'ກຳລັງໂຫຼດ...' : 'ຄົ້ນຫາ'}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={resetFilter}
-                                className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm"
-                            >
-                                ຍົກເລີກ
-                            </button>
-                        </div>
-                    </section>
+                    <ReportFilterBar
+                        reportType={reportType}
+                        loading={loading}
+                        filters={{
+                            from,
+                            to,
+                            statusFilter,
+                            categoryId,
+                            paymentMethod,
+                            tierId,
+                            queueStatus,
+                            purchaseStatus,
+                            supplierId,
+                        }}
+                        menuCategories={menuCategories}
+                        buffetTiers={buffetTiers}
+                        supplierOptions={supplierOptions}
+                        options={{
+                            reportOptions,
+                            menuStatusOptions,
+                            paymentMethodOptions,
+                            queueStatusFilterOptions,
+                            purchaseStatusOptions,
+                        }}
+                        onChangeReportType={onChangeReportType}
+                        onPatch={onPatch}
+                        onSearch={() => fetchReport()}
+                        onReset={onReset}
+                        filterButtonClass={filterButtonClass}
+                    />
 
                     <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-200/80">
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                                {reportType === 'queue_statistics' ? (
-                                    <div className="grid gap-2 sm:grid-cols-3">
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ຄິວທັງໝົດ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.total_queue ?? 0}</p>
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ເວລາລໍຖ້າສະເລ່ຍ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.avg_wait_minutes ?? 0} ນາທີ</p>
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ຄິວທີ່ຖືກຍົກເລີກ/ຂ້າມ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.non_completed ?? 0}</p>
-                                        </div>
-                                    </div>
-                                ) : reportType === 'queue_booking' ? (
-                                    <div className="grid gap-2 sm:grid-cols-3">
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ລວມແຂກທັງໝົດ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.total_guests ?? 0}</p>
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ຄິວທີ່ລໍຖ້າຍືນຍັນ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.pending_count ?? 0}</p>
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ຄິວທີ່ຢືນຍັນແລ້ວ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.confirmed_count ?? 0}</p>
-                                        </div>
-                                    </div>
-                                ) : reportType === 'menu' ? (
-                                    <div className="grid gap-2 sm:grid-cols-3">
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ເມນູທັງໝົດ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.total_menus ?? 0}</p>
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ເມນູເປີດໃຊ້ງານ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.active_menus ?? 0}</p>
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ເມນູປິດໃຊ້ງານ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.inactive_menus ?? 0}</p>
-                                        </div>
-                                    </div>
-                                ) : reportType === 'ingredient_usage' ? (
-                                    <div className="grid gap-2 sm:grid-cols-2">
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ລາຍການນຳໃຊ້ທັງໝົດ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.total_rows ?? 0}</p>
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ຈຳນວນນຳໃຊ້ລວມ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.total_used_qty ?? 0}</p>
-                                        </div>
-                                    </div>
-                                ) : reportType === 'ingredient_purchase' ? (
-                                    <div className="grid gap-2 sm:grid-cols-2">
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ຈຳນວນຄຳສັ່ງຊື້ທັງໝົດ</p>
-                                            <p className="text-lg font-bold text-slate-900">{summary.total_orders ?? 0}</p>
-                                        </div>
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                                            <p className="text-xs text-slate-500">ມູນຄ່າລວມ</p>
-                                            <p className="text-lg font-bold text-slate-900">{Number(summary.total_amount ?? 0).toLocaleString('en-US')} ກີບ</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <p className="text-sm text-slate-600">ສະຫຼຸບລາຍຮັບຊ່ວງທີ່ເລືອກ</p>
-                                        <p className="text-2xl font-bold text-slate-900">{moneyKip(summary.total)}</p>
-                                    </>
-                                )}
+                            <div className="w-full min-w-0">
+                                <ReportSummarySection reportType={reportType} summary={summary} moneyKip={moneyKip} />
                             </div>
                             <div className="flex gap-2">
                                 <button
                                     type="button"
                                     onClick={exportCsv}
-                                    className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                                    className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 font-sans"
                                 >
                                     Export Excel
                                 </button>
@@ -464,8 +310,8 @@ export default function ReportsPage({
                         <div className="mt-4 flex justify-end">
                             <button
                                 type="button"
-                                onClick={printReport}
-                                className="inline-flex items-center gap-2 rounded-xl bg-[#1e3a8a] px-4 py-2.5 text-sm font-semibold text-white"
+                                onClick={() => window.print()}
+                                className="inline-flex h-10 items-center gap-2 rounded-xl bg-[#194c9f] px-4 text-sm font-semibold text-white font-sans"
                             >
                                 <Printer className="h-4 w-4" />
                                 ພິມລາຍງານ

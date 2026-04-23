@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -14,9 +15,7 @@ class HandleInertiaRequests extends Middleware
         return parent::version($request);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
+    // ຂໍ້ມູນທົ່ວໄຊຕ໌: auth (staff/customer) + flash success
     public function share(Request $request): array
     {
         $staff = $request->user('staff');
@@ -33,18 +32,25 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
+    // ຜູ້ລັອກອິນປັດຈຸບັນ (guard staff ຫຼື customer)
     private function resolveAuthUser(Request $request): ?array
     {
         if ($staff = $request->user('staff')) {
+            // ຮູບໂປຣໄຟລ໌ — ໃຫ້ວົງມົນເທິງຂວາສະແດງຫຼັງອັບເດດ (?v= ກັນບຣາວເຊີແຄຊຮູບເກົ່າ)
+            $image = null;
+            if (! empty($staff->image)) {
+                $url = Storage::url($staff->image);
+                $v = $staff->updated_at?->getTimestamp() ?? $staff->id;
+                $image = str_contains($url, '?') ? "{$url}&v={$v}" : "{$url}?v={$v}";
+            }
+
             return [
                 'id' => $staff->id,
                 'name' => trim($staff->name.' '.$staff->surname),
                 'phone' => $staff->phone,
                 'role' => $staff->role,
                 'guard' => 'staff',
+                'image' => $image,
             ];
         }
 

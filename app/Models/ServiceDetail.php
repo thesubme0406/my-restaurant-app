@@ -10,6 +10,8 @@ class ServiceDetail extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
     protected $table = 'service_detail';
 
     protected $fillable = [

@@ -1,3 +1,4 @@
+import MoneyAmountInput from '@/Components/MoneyAmountInput';
 import axios from 'axios';
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -5,51 +6,13 @@ import { useCallback, useEffect, useRef } from 'react';
 const defaultPrimary = '#194c9f';
 const defaultDebounce = 320;
 
-/**
- * @typedef {object} PhoneLookupConfig
- * @property {'staff'|'customer_name'} strategy
- * @property {Record<string, string>} [mapResponse] — API response key → form field key (staff: name, surname)
- * @property {number} [debounceMs]
- */
-
-/**
- * @typedef {object} FormFieldSchema
- * @property {string} name
- * @property {string} label
- * @property {'text'|'password'|'tel'|'textarea'|'select'|'number'|'image_upload'} type
- * @property {boolean} [required]
- * @property {number} [maxLength]
- * @property {{ value: string, label: string }[]} [options]
- * @property {PhoneLookupConfig} [phoneLookup]
- * @property {string} [previewKey] — for `image_upload`: form key holding preview URL (default `image_url`)
- * @property {string} [addFileLabel]
- * @property {string} [changeFileLabel]
- * @property {'primary'|'default'} [imageActionStyle] — primary = filled button using modal accent color
- */
+// schema: ຊ່ອງຟອມ; phoneLookup = ເບີ→ຊື່ (staff ຫຼື customer_name)
 
 function fieldValue(data, name) {
     return data[name] ?? '';
 }
 
-/**
- * Schema-driven modal form with optional phone → name autofill (staff or customer display name).
- *
- * @param {object} props
- * @param {boolean} props.open
- * @param {() => void} props.onClose
- * @param {string} props.title
- * @param {string} props.submitLabel
- * @param {string} props.formId
- * @param {FormFieldSchema[]} props.schema
- * @param {object} props.data — form state (e.g. Inertia useForm().data)
- * @param {import('@inertiajs/react').UseFormReturn['setData']} props.setData
- * @param {Record<string, string>} props.errors
- * @param {boolean} props.processing
- * @param {(e: React.FormEvent) => void} props.onSubmit
- * @param {string} [props.primaryColor]
- * @param {string} [props.panelMaxClassName] — appended panel width classes (e.g. `sm:max-w-lg`)
- * @param {boolean} [props.splitLeadImage] — when true and first field is `image_upload`, two-column layout (image | fields)
- */
+// modal ຟອມຕາມ schema; splitLeadImage = ຮູບຊ້າຍ | ຊ່ອງຂວາເມນື່ອງ image_upload ຢູ່ຕົ້ນ
 export default function GenericFormModal({
     open,
     onClose,
@@ -248,6 +211,22 @@ export default function GenericFormModal({
                         </button>
                     </div>
                     {err ? <p className="mt-1 text-center text-xs text-rose-600">{err}</p> : null}
+                </div>
+            );
+        }
+
+        if (field.type === 'money') {
+            return (
+                <div key={field.name}>
+                    {commonLabel}
+                    <MoneyAmountInput
+                        id={`${formId}-${field.name}`}
+                        value={data[field.name]}
+                        onChange={(canonical) => onManualChange(canonical)}
+                        className={baseInput}
+                        required={field.required}
+                    />
+                    {err ? <p className="mt-1 text-xs text-rose-600">{err}</p> : null}
                 </div>
             );
         }

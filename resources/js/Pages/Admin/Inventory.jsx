@@ -1,17 +1,18 @@
+// ສະຕ໋ອກວັດຖຸດິບ + ບັນທຶກການເບີກ
+import {
+    Combobox,
+    ComboboxButton,
+    ComboboxInput,
+    ComboboxOption,
+    ComboboxOptions,
+} from '@headlessui/react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { CalendarDays, Pencil, Search, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronDown, Pencil, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { formatAmount } from '@/utils/formatAmount';
 
 const primary = '#194c9f';
-
-function numberText(value) {
-    const n = Number(value);
-    if (Number.isNaN(n)) {
-        return '0';
-    }
-    return Number.isInteger(n) ? String(n) : n.toFixed(2);
-}
 
 export default function InventoryPage({ ingredients = [], usageRows = [] }) {
     const page = usePage();
@@ -19,6 +20,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
     const flashSuccess = page.props.flash?.success;
     const [search, setSearch] = useState('');
     const [dateFilter, setDateFilter] = useState('');
+    const [ingQuery, setIngQuery] = useState('');
     const [editingRow, setEditingRow] = useState(null);
     const [editQty, setEditQty] = useState('');
     const [editNote, setEditNote] = useState('');
@@ -31,10 +33,14 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
         usage_detail: '',
     });
 
-    const ingredientOptions = ingredients.map((i) => ({
-        value: String(i.id),
-        label: `${i.ing_name} (${i.ing_unit})`,
-    }));
+    const filteredPickList = useMemo(() => {
+        const q = ingQuery.trim().toLowerCase();
+        if (!q) {
+            return ingredients;
+        }
+        return ingredients.filter((i) => String(i.ing_name ?? '').toLowerCase().includes(q));
+    }, [ingredients, ingQuery]);
+
     const selectedIngredient = useMemo(
         () => ingredients.find((i) => String(i.id) === String(form.data.ing_id)) ?? null,
         [ingredients, form.data.ing_id]
@@ -112,6 +118,18 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
         });
     };
 
+    const comboDisplay = (id) => {
+        if (id == null || id === '') {
+            return '';
+        }
+        const i = ingredients.find((x) => String(x.id) === String(id));
+        return i?.ing_name ?? '';
+    };
+
+    const usageQtyPlaceholder = selectedIngredient
+        ? `ຄົງເຫຼືອ: ${formatAmount(selectedIngredient.ing_quantity)} ${selectedIngredient.ing_unit}`
+        : '';
+
     return (
         <AdminLayout title="ເບີກວັດຖຸດິບ">
             <Head title="ເບີກວັດຖຸດິບ" />
@@ -130,60 +148,133 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                         </div>
                     )}
 
-                    <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-md shadow-slate-200/80">
+                    <section className="rounded-2xl border border-slate-100 bg-white p-5 font-sans shadow-md shadow-slate-200/80">
                         <h2 className="text-2xl font-bold tracking-tight text-[#0f2744]">ຟອມເບີກວັດຖຸດິບ</h2>
-                        <form onSubmit={submitUsage} className="mt-4 grid gap-3 md:grid-cols-[1.1fr_0.6fr_1fr_auto]">
-                            <div>
-                                <label className="mb-1 block text-xs font-bold text-slate-600">ເລືອກວັດຖຸດິບ</label>
-                                <select
-                                    value={form.data.ing_id}
-                                    onChange={(e) => form.setData('ing_id', e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
-                                >
-                                    {ingredientOptions.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-xs font-bold text-slate-600">ຈຳນວນ</label>
-                                <input
-                                    type="number"
-                                    min="0.01"
-                                    step="0.01"
-                                    value={form.data.usage_qty}
-                                    onChange={(e) => form.setData('usage_qty', e.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
-                                />
-                                {overLimit && selectedIngredient && (
-                                    <p className="mt-1 text-xs font-semibold text-rose-600">
-                                        ຂໍໂທດ, ວັດຖຸດິບໃນສາງມີບໍ່ພຽງພໍ (ຄົງເຫຼືອ: {numberText(selectedIngredient.ing_quantity)}
-                                        {selectedIngredient.ing_unit})
-                                    </p>
-                                )}
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-xs font-bold text-slate-600">ໝາຍເຫດ</label>
-                                <input
-                                    type="text"
-                                    value={form.data.usage_detail}
-                                    onChange={(e) => form.setData('usage_detail', e.target.value)}
-                                    placeholder="ຂໍ້ມູນເພີ່ມເຕີມ..."
-                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
-                                />
-                            </div>
-                            <div className="self-end">
-                                <button
-                                    type="submit"
-                                    disabled={form.processing || invalidQty || !form.data.ing_id}
-                                    className="w-full rounded-xl px-4 py-2.5 text-sm font-bold text-white shadow-md transition disabled:cursor-not-allowed disabled:bg-slate-300"
-                                    style={{ backgroundColor: form.processing ? undefined : primary }}
-                                >
-                                    + ເບີກວັດຖຸດິບ
-                                </button>
-                            </div>
+                        <form onSubmit={submitUsage} className="mt-4">
+                            {ingredients.length === 0 ? (
+                                <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                                    ຍັງບໍ່ມີວັດຖຸດິບໃນລະບົບ
+                                </p>
+                            ) : (
+                                <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(9.5rem,12rem)_minmax(0,1.45fr)_auto] lg:items-end lg:gap-x-3 lg:gap-y-0">
+                                    {/* ເລືອກວັດຖຸດິບ — label ກັບ input ຫ່າງໜ້ອຍ */}
+                                    <div className="flex min-w-0 flex-col gap-1">
+                                        <label
+                                            htmlFor="usage-ingredient"
+                                            className="block text-xs font-bold leading-tight text-slate-600"
+                                        >
+                                            ເລືອກວັດຖຸດິບ
+                                        </label>
+                                        <Combobox
+                                            value={form.data.ing_id === '' ? null : form.data.ing_id}
+                                            onChange={(id) => {
+                                                form.setData('ing_id', id == null ? '' : String(id));
+                                                setIngQuery('');
+                                            }}
+                                            onClose={() => setIngQuery('')}
+                                        >
+                                            <div className="relative">
+                                                <ComboboxInput
+                                                    id="usage-ingredient"
+                                                    className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-3 pr-9 text-sm leading-none text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                                    displayValue={comboDisplay}
+                                                    onChange={(e) => setIngQuery(e.target.value)}
+                                                    placeholder="ພິມຄົ້ນຫາ ຫຼື ເລືອກວັດຖຸດິບ..."
+                                                />
+                                                <ComboboxButton
+                                                    type="button"
+                                                    className="absolute inset-y-0 right-0 flex items-center pr-2 text-slate-500"
+                                                >
+                                                    <ChevronDown className="h-4 w-4 shrink-0" aria-hidden />
+                                                </ComboboxButton>
+                                                <ComboboxOptions className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 font-sans shadow-lg empty:invisible">
+                                                    {filteredPickList.length === 0 ? (
+                                                        <div className="px-3 py-2 text-sm text-slate-500">ບໍ່ພົບວັດຖຸດິບ</div>
+                                                    ) : (
+                                                        filteredPickList.map((i) => (
+                                                            <ComboboxOption
+                                                                key={i.id}
+                                                                value={String(i.id)}
+                                                                className="cursor-pointer px-3 py-2 text-sm text-slate-800 data-[focus]:bg-[#194c9f]/10"
+                                                            >
+                                                                {i.ing_name}
+                                                            </ComboboxOption>
+                                                        ))
+                                                    )}
+                                                </ComboboxOptions>
+                                            </div>
+                                        </Combobox>
+                                    </div>
+
+                                    {/* ຈຳນວນ — placeholder ຄົງເຫຼືອໃຊ້ຕົວໜ້ອຍເພື່ອເຫັນຊື່ຍາວ */}
+                                    <div className="flex w-full min-w-0 flex-col gap-1">
+                                        <label
+                                            htmlFor="usage-qty"
+                                            className="block text-xs font-bold leading-tight text-slate-600"
+                                        >
+                                            ຈຳນວນ
+                                        </label>
+                                        <input
+                                            id="usage-qty"
+                                            type="number"
+                                            min="0.01"
+                                            step="0.01"
+                                            value={form.data.usage_qty}
+                                            onChange={(e) => form.setData('usage_qty', e.target.value)}
+                                            placeholder={usageQtyPlaceholder}
+                                            aria-label={
+                                                selectedIngredient
+                                                    ? `${usageQtyPlaceholder} — ປ້ອນຈຳນວນເບີກ`
+                                                    : 'ປ້ອນຈຳນວນເບີກ'
+                                            }
+                                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none placeholder:text-[10px] placeholder:leading-snug placeholder:text-slate-400/60 focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                        />
+                                        {overLimit && selectedIngredient ? (
+                                            <p className="mt-1 text-xs font-semibold leading-tight text-rose-600">
+                                                ຂໍໂທດ, ວັດຖຸດິບໃນສາງມີບໍ່ພຽງພໍ (ຄົງເຫຼືອ:{' '}
+                                                {formatAmount(selectedIngredient.ing_quantity)}
+                                                {selectedIngredient.ing_unit})
+                                            </p>
+                                        ) : null}
+                                    </div>
+
+                                    {/* ໝາຍເຫດ — ຄອລຸມ fr ກວ້າງກວ່າຈຳນວນ (rem) */}
+                                    <div className="flex min-w-0 flex-col gap-1">
+                                        <label
+                                            htmlFor="usage-note"
+                                            className="block text-xs font-bold leading-tight text-slate-600"
+                                        >
+                                            ໝາຍເຫດ
+                                        </label>
+                                        <input
+                                            id="usage-note"
+                                            type="text"
+                                            value={form.data.usage_detail}
+                                            onChange={(e) => form.setData('usage_detail', e.target.value)}
+                                            placeholder="ຂໍ້ມູນເພີ່ມເຕີມ..."
+                                            className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                        />
+                                    </div>
+
+                                    {/* ປຸ່ມ — ຈັດແຖວກັບ input (ມີຊ່ອງ label ເທົ່າກັນ) */}
+                                    <div className="flex flex-col gap-1 lg:w-auto lg:shrink-0">
+                                        <span
+                                            className="hidden text-xs font-bold leading-tight text-transparent lg:block"
+                                            aria-hidden
+                                        >
+                                            .
+                                        </span>
+                                        <button
+                                            type="submit"
+                                            disabled={form.processing || invalidQty || !form.data.ing_id}
+                                            className="h-10 w-full min-w-[10.5rem] whitespace-nowrap rounded-xl px-4 text-sm font-bold text-white shadow-md transition disabled:cursor-not-allowed disabled:bg-slate-300 lg:w-auto"
+                                            style={{ backgroundColor: form.processing ? undefined : primary }}
+                                        >
+                                            + ເບີກວັດຖຸດິບ
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </form>
                     </section>
 
@@ -196,7 +287,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                                     type="search"
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
-                                    placeholder="Search"
+                                    placeholder="ຄົ້ນຫາ..."
                                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
                                 />
                             </div>
@@ -221,7 +312,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                                         <th className="px-3 py-2 text-left font-bold">ປະລິມານ</th>
                                         <th className="px-3 py-2 text-left font-bold">ຜູ້ເບີກ</th>
                                         <th className="px-3 py-2 text-left font-bold">ໝາຍເຫດ</th>
-                                        <th className="px-3 py-2 text-left font-bold">Action</th>
+                                        <th className="px-3 py-2 text-left font-bold">ຈັດການ</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 bg-white">
@@ -229,11 +320,15 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                                         <tr key={row.id}>
                                             <td className="px-3 py-2">{idx + 1}</td>
                                             <td className="px-3 py-2">{row.usage_date}</td>
-                                            <td className="px-3 py-2 font-semibold text-[#1e4da1]">{row.ingredient_name}</td>
-                                            <td className="px-3 py-2">
-                                                {numberText(row.usage_qty)} {row.ing_unit}
+                                            <td className="px-3 py-2 font-semibold" style={{ color: primary }}>
+                                                {row.ingredient_name}
                                             </td>
-                                            <td className="px-3 py-2 font-semibold text-[#1e4da1]">{row.staff_name}</td>
+                                            <td className="px-3 py-2">
+                                                {formatAmount(row.usage_qty)} {row.ing_unit}
+                                            </td>
+                                            <td className="px-3 py-2 font-semibold" style={{ color: primary }}>
+                                                {row.staff_name}
+                                            </td>
                                             <td className="px-3 py-2">{row.usage_detail || '—'}</td>
                                             <td className="px-3 py-2">
                                                 <div className="flex gap-2">
@@ -287,7 +382,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                                 />
                                 {editOverLimit && (
                                     <p className="mt-1 text-xs font-semibold text-rose-600">
-                                        ຂໍໂທດ, ວັດຖຸດິບໃນສາງມີບໍ່ພຽງພໍ (ຄົງເຫຼືອ: {numberText(editMaxQty)}
+                                        ຂໍໂທດ, ວັດຖຸດິບໃນສາງມີບໍ່ພຽງພໍ (ຄົງເຫຼືອ: {formatAmount(editMaxQty)}
                                         {editingRow.ing_unit})
                                     </p>
                                 )}

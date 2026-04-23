@@ -46,7 +46,7 @@ class ServiceSeeder extends Seeder
             ]);
 
             $table->update([
-                'status' => $isActive ? 'occupied' : 'available',
+                'usage_status' => $isActive ? 'occupied' : 'available',
             ]);
         }
     }

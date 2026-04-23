@@ -3,19 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 
 const defaultPrimary = '#194c9f';
 
-/**
- * Buffet tier ↔ menu checklist: category filter + debounced name search (cross-filter).
- * Checked state lives in the parent (`checked` Set) so clearing filters never loses selections.
- *
- * @param {object} props
- * @param {Array<{ id: number, name: string, category_name?: string, category_id?: number|null, description?: string, is_active?: boolean }>} props.menus
- * @param {Set<number>} props.checked
- * @param {(menuId: number) => void} props.onToggle
- * @param {boolean} props.viewSelectedOnly
- * @param {boolean} props.tierPivotLoading
- * @param {boolean} props.bindingSaveBusy
- * @param {string} [props.primaryColor]
- */
+// ລາຍການເມນູຜູກແພັກ: ກອງໝວດໝູ່ + ຄົ້ນຫາ; checked ຢູ່ parent (ກອງແລ້ວບໍ່ເສຍເລືອກ)
 export default function BuffetTierMapping({
     menus = [],
     checked,

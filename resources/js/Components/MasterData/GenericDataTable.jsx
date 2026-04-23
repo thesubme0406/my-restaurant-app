@@ -3,25 +3,7 @@ import { useMemo, useState } from 'react';
 
 const defaultPrimary = '#194c9f';
 
-/**
- * Reusable data table: Lao-friendly layout, client search, optional add CTA, custom row cells.
- *
- * @param {object} props
- * @param {{ key: string, header: string, className?: string, thClassName?: string, cell: (args: { row: object, index: number }) => React.ReactNode }[]} props.columns
- * @param {object[]} props.rows
- * @param {string[]} [props.searchKeys] — keys to match against search text (substring, case-insensitive)
- * @param {string} [props.searchPlaceholder]
- * @param {string} [props.title] — table section title (e.g. ຂໍ້ມູນພະນັກງານ)
- * @param {number} [props.totalCount] — if omitted, uses rows.length
- * @param {string} [props.totalLabel] — prefix before count (e.g. ທັງໝົດ)
- * @param {string} [props.countSuffix] — after number (e.g. ຄົນ)
- * @param {string} [props.emptyMessage]
- * @param {() => void} [props.onAdd]
- * @param {string} [props.addButtonLabel]
- * @param {string} [props.primaryColor]
- * @param {string} [props.toolbarClassName] — e.g. max width + alignment for search/add row (match page controls)
- * @param {{ value: string, onChange: (value: string) => void, options: { value: string, label: string }[], allLabel?: string }} [props.categoryFilter] — dropdown next to search (e.g. ໝວດໝູ່)
- */
+// ຕາຕະລາງທົ່ວໄປ: ຄົ້ນຫາຝັ່ງຄລາຍ, ປຸ່ມເພີ່ມ, ກອງໝວດໝູ່ (categoryFilter) — primaryColor ຄ່າເລີ່ມ #194c9f
 export default function GenericDataTable({
     columns,
     rows = [],
@@ -154,7 +136,7 @@ export default function GenericDataTable({
     );
 }
 
-/** Square thumbnail + package name for buffet / catalog rows. */
+// ຮູບຫຼຽນ + ຊື່ແຖວ (ບຸບເຟ່ / ເມນູ)
 export function TablePackageNameCell({ imageUrl, name }) {
     return (
         <div className="flex min-w-0 items-center gap-4">

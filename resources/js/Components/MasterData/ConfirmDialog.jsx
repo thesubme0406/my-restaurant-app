@@ -2,9 +2,7 @@ import { X } from 'lucide-react';
 
 const defaultPrimary = '#194c9f';
 
-/**
- * Simple confirmation modal (delete / destructive actions).
- */
+// ປັອບອັບຢືນຢັນ (ລຶບ / ທຳລາຍ)
 export default function ConfirmDialog({
     open,
     onClose,

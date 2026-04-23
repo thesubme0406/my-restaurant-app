@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 
 class StaffLookupController extends Controller
 {
+    // ຄົ້ນຫາພະນັກງານຕາມເບີ → JSON ໃຫ້ຟອມເຕີມຊື່
     public function __invoke(Request $request): JsonResponse
     {
         $phone = preg_replace('/\D+/', '', (string) $request->query('phone', '')) ?? '';

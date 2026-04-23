@@ -19,7 +19,8 @@ class Table extends Model
         'table_no',
         'capacity',
         'zone',
-        'status',
+        'readiness',
+        'usage_status',
     ];
 
     public function bookings(): HasMany
@@ -35,5 +36,17 @@ class Table extends Model
     public function services(): BelongsToMany
     {
         return $this->belongsToMany(Service::class, 'service_detail', 'table_id', 'service_id');
+    }
+
+    /**
+     * ມີບໍລິການ in_service ທີ່ຍັງບໍ່ຊຳລະເຊື່ມໂຕະນີ້ຫຼືບໍ່ (ສະຖານະ «ມີລູກຄ້າ» ຕາມຂໍ້ມູນບໍລິການ — ບໍ່ໃຊ້ usage_status ຢ່າງດຽວ).
+     */
+    public function hasActiveUnpaidService(): bool
+    {
+        return Service::query()
+            ->where('status', 'in_service')
+            ->whereDoesntHave('payment')
+            ->whereHas('serviceDetails', fn ($q) => $q->where('table_id', $this->id))
+            ->exists();
     }
 }

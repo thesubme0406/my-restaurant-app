@@ -1,26 +1,17 @@
+import MoneyAmountInput from '@/Components/MoneyAmountInput';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { formatAmount } from '@/utils/formatAmount';
 
 const primary = '#194c9f';
 
 function statusBadge(status) {
-    if (status === 'Received') {
+    if (status === 'Received' || status === 'Completed') {
         return <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">ເສັດສິ້ນ</span>;
     }
-    if (status === 'Ordered') {
-        return <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">ຈັດສົ່ງແລ້ວ</span>;
-    }
     return <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">ລໍຖ້າຈັດສົ່ງ</span>;
-}
-
-function numberText(value) {
-    const n = Number(value);
-    if (Number.isNaN(n)) {
-        return '0';
-    } 
-    return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
 
 export default function ImportPage({ purchaseOrders = [] }) {
@@ -198,12 +189,9 @@ export default function ImportPage({ purchaseOrders = [] }) {
                                         </div>
                                         <div className="mt-2">
                                             <label className="mb-1 block text-xs font-semibold text-slate-600">ລາຄາຕົ້ນທຶນ</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
+                                            <MoneyAmountInput
                                                 value={item.cost_price}
-                                                onChange={(e) => updateItem(item.ing_id, 'cost_price', e.target.value)}
+                                                onChange={(v) => updateItem(item.ing_id, 'cost_price', v)}
                                                 disabled={isImported}
                                                 className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20 disabled:cursor-not-allowed disabled:bg-slate-100"
                                             />
@@ -217,7 +205,9 @@ export default function ImportPage({ purchaseOrders = [] }) {
                             <div className="border-t border-slate-200 p-5">
                                 <div className="mb-3 flex items-center justify-between rounded-xl bg-slate-100 px-3 py-2">
                                     <span className="text-sm font-bold text-slate-600">ລາຄາລວມ</span>
-                                    <span className="text-xl font-extrabold text-[#0f2744]">{numberText(isImported ? selectedPo?.imported_total_price ?? 0 : totalPrice)}</span>
+                                    <span className="text-xl font-extrabold text-[#0f2744]">
+                                        {formatAmount(isImported ? selectedPo?.imported_total_price ?? 0 : totalPrice)}
+                                    </span>
                                 </div>
                                 {!isImported ? (
                                     <button

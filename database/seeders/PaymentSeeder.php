@@ -50,7 +50,7 @@ class PaymentSeeder extends Seeder
             }
 
             foreach ($service->serviceDetails as $detail) {
-                $detail->table?->update(['status' => 'available']);
+                $detail->table?->update(['usage_status' => 'available']);
             }
         }
     }
