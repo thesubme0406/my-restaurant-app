@@ -19,6 +19,7 @@ class Payment extends Model
         'staff_id',
         'total_amount',
         'method',
+        'note',
         'payment_time',
     ];
 

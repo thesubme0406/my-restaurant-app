@@ -2,7 +2,9 @@ import { Head, Link } from '@inertiajs/react';
 import CustomerLayout from '@/Layouts/CustomerLayout';
 import { ChevronRight } from 'lucide-react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { formatAmount } from '@/utils/formatAmount';
 
+// ສີຟ້າ OSHINEI (#194c9f) ກົງກັບ admin constants
 const brandBlue = '#194c9f';
 const goldCard = '#e8c547';
 
@@ -11,10 +13,7 @@ function formatKipPerPerson(price) {
     if (Number.isNaN(n)) {
         return '—';
     }
-    const formatted = Number.isInteger(n)
-        ? n.toLocaleString('en-US')
-        : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return `${formatted} ກີບ/ຄົນ`;
+    return `${formatAmount(n)} ກີບ/ຄົນ`;
 }
 
 export default function MenuPage({
@@ -97,9 +96,7 @@ export default function MenuPage({
                             >
                                 {buffetTiers.map((tier) => {
                                     const active = Number(tier.id) === Number(selectedTierId);
-                                    const formatted = Number.isInteger(Number(tier.price))
-                                        ? Number(tier.price).toLocaleString('en-US')
-                                        : Number(tier.price).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+                                    const formatted = formatAmount(tier.price);
                                     return (
                                         <button
                                             key={tier.id}

@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
     AlertTriangle,
     Calendar,
@@ -53,7 +53,7 @@ function QueueDetailStatusPill({ status }) {
     }
     if (status === 'confirmed') {
         return (
-            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-[#1e3a8a]">
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-[#194c9f]">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 ຢືນຢັນແລ້ວ
             </span>
@@ -68,7 +68,7 @@ function QueueDetailStatusPill({ status }) {
         );
     }
     return (
-        <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-[#1e3a8a]">
+        <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-[#194c9f]">
             <Clock3 className="h-3.5 w-3.5" />
             ກຳລັງລໍຄິວ
         </span>
@@ -216,6 +216,7 @@ export default function ReservePage({
     );
 
     const dayLabel = useMemo(() => clock.toLocaleDateString('en-GB'), [clock]);
+    const profileNameTrimmed = (customer_profile?.name ?? '').trim();
     const onFormField = (field, value) => {
         setForm((current) => ({ ...current, [field]: value }));
         setFormErrors((current) => ({ ...current, [field]: undefined }));
@@ -324,11 +325,11 @@ export default function ReservePage({
             <Head title="ຈອງຄິວ" />
 
             <div className="space-y-3">
-                <h1 className="text-center text-3xl font-extrabold text-[#1e3a8a]">ຈອງຄິວຮ້ານໂອຊິເນ</h1>
+                <h1 className="text-center text-3xl font-extrabold text-[#194c9f]">ຈອງຄິວຮ້ານໂອຊິເນ</h1>
                 {successMessage && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{successMessage}</div>}
                 {errorMessage && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{errorMessage}</div>}
 
-                <section className="rounded-xl bg-[#1e3a8a] p-4 text-white shadow-sm">
+                <section className="rounded-xl bg-[#194c9f] p-4 text-white shadow-sm">
                     <p className="text-center text-5xl font-extrabold tracking-widest">{digitalClock}</p>
                     <p className="mt-1 text-center text-sm">{dayLabel}</p>
 
@@ -342,7 +343,7 @@ export default function ReservePage({
                         <button
                             type="button"
                             onClick={() => setShowBookingModal(true)}
-                            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xl font-bold text-[#1e3a8a]"
+                            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xl font-bold text-[#194c9f]"
                         >
                             + ຈອງຄິວໃໝ່
                         </button>
@@ -351,7 +352,7 @@ export default function ReservePage({
 
                 {currentQueues.length === 0 && (
                     <p className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm text-slate-600 shadow-sm" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
-                        ທ່ານຍັງບໍ່ມີຄິວລໍຖ້າ — ກົດ <span className="font-semibold text-[#1e3a8a]">+ ຈອງຄິວໃໝ່</span> ເທິງກາດສີຟ້າເພື່ອຈອງ.
+                        ທ່ານຍັງບໍ່ມີຄິວລໍຖ້າ — ກົດ <span className="font-semibold text-[#194c9f]">+ ຈອງຄິວໃໝ່</span> ເທິງກາດສີຟ້າເພື່ອຈອງ.
                     </p>
                 )}
 
@@ -373,21 +374,21 @@ export default function ReservePage({
                                         setDetailQueue(queue);
                                     }
                                 }}
-                                className="flex cursor-pointer items-center justify-between rounded-xl border border-[#1e3a8a]/40 bg-white p-3 shadow-md outline-none ring-[#1e3a8a] focus-visible:ring-2"
+                                className="flex cursor-pointer items-center justify-between rounded-xl border border-[#194c9f]/40 bg-white p-3 shadow-md outline-none ring-[#194c9f] focus-visible:ring-2"
                                 style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
                             >
                                 <div className="flex items-center gap-3">
-                                    <div className="rounded-lg bg-[#1e3a8a]/10 p-2">
-                                        <Ticket className="h-5 w-5 text-[#1e3a8a]" />
+                                    <div className="rounded-lg bg-[#194c9f]/10 p-2">
+                                        <Ticket className="h-5 w-5 text-[#194c9f]" />
                                     </div>
                                     <div>
                                         <p className="text-xs text-slate-500">ຄິວຂອງທ່ານ</p>
-                                        <p className="text-3xl font-extrabold text-[#1e3a8a]">{queue.queue_no}</p>
+                                        <p className="text-3xl font-extrabold text-[#194c9f]">{queue.queue_no}</p>
                                         <p className="text-xs text-slate-500">{queue.guest_count} ຄົນ</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-[#1e3a8a]">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-[#194c9f]">
                                         <CheckCircle2 className="h-3.5 w-3.5" />
                                         ~{queue.estimated_wait_time ?? estimatedWait}
                                     </span>
@@ -428,11 +429,11 @@ export default function ReservePage({
                                     setDetailQueue(row);
                                 }
                             }}
-                            className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3 shadow-sm outline-none ring-[#1e3a8a] transition hover:border-slate-300 focus-visible:ring-2"
+                            className="cursor-pointer rounded-xl border border-slate-200 bg-white p-3 shadow-sm outline-none ring-[#194c9f] transition hover:border-slate-300 focus-visible:ring-2"
                             style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="rounded-lg bg-[#1e3a8a]/10 px-2 py-1 text-xl font-bold text-[#1e3a8a]">{row.queue_no}</div>
+                                <div className="rounded-lg bg-[#194c9f]/10 px-2 py-1 text-xl font-bold text-[#194c9f]">{row.queue_no}</div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-3">
                                         <p className="truncate text-lg font-bold text-slate-900">{row.customer_name}</p>
@@ -465,8 +466,8 @@ export default function ReservePage({
                     <section className="relative z-10 w-full rounded-t-3xl bg-white p-4 shadow-2xl">
                         <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-slate-300" />
                         <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-3xl font-extrabold text-[#1e3a8a]">ຈອງຄິວ</h2>
-                            <button type="button" onClick={() => setShowBookingModal(false)} className="rounded-full p-1 text-[#1e3a8a]">
+                            <h2 className="text-3xl font-extrabold text-[#194c9f]">ຈອງຄິວ</h2>
+                            <button type="button" onClick={() => setShowBookingModal(false)} className="rounded-full p-1 text-[#194c9f]">
                                 <X className="h-7 w-7" />
                             </button>
                         </div>
@@ -474,11 +475,23 @@ export default function ReservePage({
                         <div className="space-y-3">
                             <div>
                                 <label className="mb-1 block text-sm font-semibold text-slate-600">ຊື່ລູກຄ້າ</label>
-                                <input
-                                    value={form.customer_name}
-                                    onChange={(event) => onFormField('customer_name', event.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base"
-                                />
+                                {profileNameTrimmed ? (
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base text-slate-900">
+                                        <p className="font-semibold">{profileNameTrimmed}</p>
+                                        <Link
+                                            href={route('customer.profile')}
+                                            className="mt-1 inline-block text-xs font-semibold text-[#194c9f] hover:underline"
+                                        >
+                                            ແກ້ໄຂຊື່ທີ່ໂປຣໄຟລ໌
+                                        </Link>
+                                    </div>
+                                ) : (
+                                    <input
+                                        value={form.customer_name}
+                                        onChange={(event) => onFormField('customer_name', event.target.value)}
+                                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base"
+                                    />
+                                )}
                                 {formErrors.customer_name && <p className="mt-1 text-xs text-rose-600">{formErrors.customer_name}</p>}
                             </div>
 
@@ -547,7 +560,7 @@ export default function ReservePage({
                                 type="button"
                                 onClick={submitBooking}
                                 disabled={submitting}
-                                className="w-full rounded-xl bg-[#1e3a8a] px-4 py-2.5 text-xl font-bold text-white disabled:opacity-50"
+                                className="w-full rounded-xl bg-[#194c9f] px-4 py-2.5 text-xl font-bold text-white disabled:opacity-50"
                             >
                                 {submitting ? 'ກຳລັງບັນທຶກ...' : 'ຢືນຢັນການຈອງ'}
                             </button>
@@ -572,11 +585,11 @@ export default function ReservePage({
                     >
                         <div className="mx-auto mt-2 h-1.5 w-14 shrink-0 rounded-full bg-slate-300 sm:hidden" />
                         <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-4 pb-2 pt-3">
-                            <h2 className="text-lg font-extrabold text-[#1e3a8a] underline decoration-[#1e3a8a] decoration-2 underline-offset-4">ລາຍລະອຽດຄິວ</h2>
+                            <h2 className="text-lg font-extrabold text-[#194c9f] underline decoration-[#194c9f] decoration-2 underline-offset-4">ລາຍລະອຽດຄິວ</h2>
                             <button
                                 type="button"
                                 onClick={closeDetail}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#1e3a8a] text-white shadow-sm"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#194c9f] text-white shadow-sm"
                                 aria-label="Close"
                             >
                                 <X className="h-5 w-5" />
@@ -584,16 +597,16 @@ export default function ReservePage({
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2">
                             <div className="flex flex-col items-center">
-                                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-[#1e3a8a] text-3xl font-extrabold text-white shadow-inner">
+                                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-[#194c9f] text-3xl font-extrabold text-white shadow-inner">
                                     {formatQueueNoDisplay(detailQueue.queue_no)}
                                 </div>
                                 <QueueDetailStatusPill status={detailQueue.status} />
                             </div>
 
                             {!detailIsHistory && (
-                                <div className="mt-4 rounded-xl border border-slate-200 border-l-4 border-l-[#1e3a8a] bg-slate-50 py-3 pl-4 pr-3 shadow-sm">
+                                <div className="mt-4 rounded-xl border border-slate-200 border-l-4 border-l-[#194c9f] bg-slate-50 py-3 pl-4 pr-3 shadow-sm">
                                     <div className="flex items-start gap-3">
-                                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1e3a8a]/15 text-[#1e3a8a]">
+                                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#194c9f]/15 text-[#194c9f]">
                                             <Clock3 className="h-5 w-5" />
                                         </div>
                                         <div>

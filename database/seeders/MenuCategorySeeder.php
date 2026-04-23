@@ -13,9 +13,9 @@ class MenuCategorySeeder extends Seeder
     public function run(): void
     {
         $categories = [
-            ['catg_name' => 'Sashimi', 'image' => null],
             ['catg_name' => 'Sushi', 'image' => null],
             ['catg_name' => 'Drinks', 'image' => null],
+            ['catg_name' => 'Appetizers', 'image' => null],
             ['catg_name' => 'Dessert', 'image' => null],
         ];
 

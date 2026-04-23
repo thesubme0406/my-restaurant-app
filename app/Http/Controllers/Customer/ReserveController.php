@@ -51,7 +51,7 @@ class ReserveController extends Controller
 
         $availableTableCount = max(
             1,
-            Table::query()->whereIn('status', ['available', 'occupied'])->count()
+            Table::query()->where('readiness', 'ready')->count()
         );
         $avgServeMinutesPerTable = 4;
         $estimatedWaitMinutes = (int) ceil(($waitingCount / $availableTableCount) * $avgServeMinutesPerTable);

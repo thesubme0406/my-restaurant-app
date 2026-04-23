@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
+import { confirmAndLogout } from '@/utils/confirmLogout';
+import ApplicationLogo from '@/Components/ApplicationLogo';
 import {
-    Bell,
     ChevronLeft,
     CreditCard,
     Database,
@@ -75,16 +76,17 @@ function NavLinks({ menus, currentPath, onNavigate }) {
                     </Link>
                 );
             })}
-            <Link
-                href={route('logout')}
-                method="post"
-                as="button"
-                onClick={onNavigate ?? undefined}
+            <button
+                type="button"
+                onClick={() => {
+                    onNavigate?.();
+                    confirmAndLogout();
+                }}
                 className="mt-2 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
             >
                 <LogOut className="h-5 w-5 shrink-0 opacity-90" strokeWidth={1.75} />
                 <span>ອອກຈາກລະບົບ</span>
-            </Link>
+            </button>
         </>
     );
 }
@@ -100,12 +102,15 @@ export default function AdminLayout({ children, title }) {
               : '';
     const currentPath = pathFromPage || '/';
     const initials = auth?.user?.name ? auth.user.name.slice(0, 2).toUpperCase() : 'AD';
+    const profileImage = typeof auth?.user?.image === 'string' && auth.user.image.trim() !== '' ? auth.user.image : null;
     const menus = auth?.is_staff_manager ? managerMenus : staffMenus;
     const headerTitle = resolveHeaderTitle(currentPath, menus, title);
     const profileHref = auth?.is_staff_manager ? '/admin/profile' : '/staff/profile';
 
     const [mobileNavOpen, setMobileNavOpen] = useState(false);
+    const [brandLogoError, setBrandLogoError] = useState(false);
     const closeMobile = () => setMobileNavOpen(false);
+    const brandLogoSrc = '/images/oshinei-logo.png';
 
     return (
         <div className="min-h-screen bg-slate-100 font-lao text-slate-900">
@@ -115,9 +120,18 @@ export default function AdminLayout({ children, title }) {
                     style={{ backgroundColor: brandBlue }}
                 >
                     <div className="flex items-center gap-3 border-b border-white/10 px-5 py-6">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white/30 bg-white/10 text-xs font-bold text-white">
-                            O
-                        </div>
+                        {!brandLogoError ? (
+                            <img
+                                src={brandLogoSrc}
+                                alt="OSHINEI logo"
+                                className="h-12 w-12 shrink-0 rounded-full border-2 border-white/40 bg-white object-cover"
+                                onError={() => setBrandLogoError(true)}
+                            />
+                        ) : (
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 border-white/40 bg-white p-2">
+                                <ApplicationLogo className="h-full w-full fill-[#194c9f]" />
+                            </div>
+                        )}
                         <span className="text-xl font-bold tracking-wide text-white">OSHINEI</span>
                     </div>
                     <nav className="flex flex-1 flex-col gap-0.5 px-3 py-4">
@@ -140,7 +154,21 @@ export default function AdminLayout({ children, title }) {
                         style={{ backgroundColor: brandBlue }}
                     >
                         <div className="flex items-center justify-between border-b border-white/10 px-4 py-4">
-                            <span className="text-lg font-bold text-white">OSHINEI</span>
+                            <div className="flex items-center gap-3">
+                                {!brandLogoError ? (
+                                    <img
+                                        src={brandLogoSrc}
+                                        alt="OSHINEI logo"
+                                        className="h-10 w-10 shrink-0 rounded-full border-2 border-white/40 bg-white object-cover"
+                                        onError={() => setBrandLogoError(true)}
+                                    />
+                                ) : (
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 border-white/40 bg-white p-2">
+                                        <ApplicationLogo className="h-full w-full fill-[#194c9f]" />
+                                    </div>
+                                )}
+                                <span className="text-lg font-bold text-white">OSHINEI</span>
+                            </div>
                             <button
                                 type="button"
                                 onClick={closeMobile}
@@ -183,20 +211,22 @@ export default function AdminLayout({ children, title }) {
                             </h1>
                         </div>
                         <div className="flex items-center gap-2 sm:gap-3">
-                            <button
-                                type="button"
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100"
-                                aria-label="ແຈ້ງເຕືອນ"
-                            >
-                                <Bell className="h-5 w-5" strokeWidth={1.75} />
-                            </button>
+                            <span className="hidden max-w-[180px] truncate text-sm font-semibold text-slate-700 sm:inline">
+                                {auth?.user?.name ?? '—'}
+                            </span>
                             <Link
                                 href={profileHref}
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white transition hover:opacity-90"
-                                style={{ backgroundColor: brandBlue }}
+                                className={`flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-semibold transition hover:opacity-90 ${
+                                    profileImage ? 'ring-1 ring-slate-200 bg-slate-100' : 'text-white'
+                                }`}
+                                style={profileImage ? undefined : { backgroundColor: brandBlue }}
                                 aria-label="ໄປຫາໜ້າໂປຣໄຟລ໌"
                             >
-                                {initials}
+                                {profileImage ? (
+                                    <img src={profileImage} alt="" className="h-full w-full object-cover" />
+                                ) : (
+                                    initials
+                                )}
                             </Link>
                         </div>
                     </header>

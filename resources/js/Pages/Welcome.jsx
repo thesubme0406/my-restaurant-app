@@ -1,7 +1,8 @@
 import { Head, Link } from '@inertiajs/react';
 
+// ໜ້າ Welcome ເທມເພດ Laravel (ຮູບເສຍ = ຊ່ອນພື້ນຫຼັງ)
 export default function Welcome({ auth, laravelVersion, phpVersion }) {
-    const handleImageError = () => {
+    const onImgError = () => {
         document
             .getElementById('screenshot-container')
             ?.classList.add('!hidden');
@@ -71,7 +72,7 @@ export default function Welcome({ auth, laravelVersion, phpVersion }) {
                                             src="https://laravel.com/assets/img/welcome/docs-light.svg"
                                             alt="Laravel documentation screenshot"
                                             className="aspect-video h-full w-full flex-1 rounded-[10px] object-cover object-top drop-shadow-[0px_4px_34px_rgba(0,0,0,0.06)] dark:hidden"
-                                            onError={handleImageError}
+                                            onError={onImgError}
                                         />
                                         <img
                                             src="https://laravel.com/assets/img/welcome/docs-dark.svg"

@@ -1,3 +1,4 @@
+// ແຜງຄິວ + ໂຕະ (ສະຕາດ + ໂຊນ)
 import DashboardModalShell, { ModalFooterActions } from '@/Components/QueueDashboard/DashboardModalShell';
 import QueueCard from '@/Components/QueueDashboard/QueueCard';
 import TableCard from '@/Components/QueueDashboard/TableCard';
@@ -5,7 +6,8 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Clock, LayoutGrid, ListOrdered, SkipForward, UserRound, Users } from 'lucide-react';
+import { CheckCircle2, Clock, LayoutGrid, ListOrdered, Plus, SkipForward, UserRound, Users } from 'lucide-react';
+import { formatAmount } from '@/utils/formatAmount';
 
 const PHONE_LOOKUP_DEBOUNCE_MS = 320;
 
@@ -15,7 +17,7 @@ function formatLak(amount) {
     if (amount == null || Number.isNaN(Number(amount))) {
         return '';
     }
-    return `${Number(amount).toLocaleString('en-US')} LAK`;
+    return `${formatAmount(amount)} LAK`;
 }
 
 const statCards = (stats) => [
@@ -73,12 +75,12 @@ function QueuePanel({
     onOpenPairQueueToTable,
 }) {
     return (
-        <div className="space-y-8">
-            <div className="space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-md">
+        <div className="space-y-6">
+            <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200/90 bg-white p-3 shadow-sm">
                     <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-bold text-slate-900">ຄິວລໍຖ້າ</h2>
-                        <span className="rounded-full bg-sky-600 px-2.5 py-0.5 text-xs font-bold text-white">
+                        <h2 className="text-base font-bold text-slate-900">ຄິວລໍຖ້າ</h2>
+                        <span className="rounded-full bg-sky-600 px-2 py-0.5 text-[11px] font-bold text-white">
                             {queue.length}
                         </span>
                     </div>
@@ -86,18 +88,20 @@ function QueuePanel({
                         type="button"
                         onClick={onAddClick}
                         disabled={addFormProcessing}
-                        className="min-h-[44px] rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                        className="inline-flex min-h-[3rem] min-w-[9.5rem] items-center justify-center gap-2 rounded-xl bg-[#194c9f] px-6 py-3 text-base font-bold text-white shadow-md transition hover:bg-[#153d82] disabled:opacity-60"
                     >
+                        <Plus className="h-5 w-5 shrink-0" />
                         {addFormProcessing ? 'ກຳລັງບັນທຶກ...' : 'ເພີ່ມຄິວ'}
                     </button>
                 </div>
-                <div className="space-y-4">
-                    {queue.length === 0 ? (
-                        <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/80 p-6 text-center text-sm text-slate-500">
-                            ບໍ່ມີຄິວລໍຖ້າ
-                        </p>
-                    ) : (
-                        queue.map((entry) => (
+                {/* ກຳນົດຂະໜາດ ແລະ ການເລື່ອນເບິ່ງຄິວລໍຖ້າ — ບໍ່ໃຫ້ໜ້າຍາວລົງ; ລຽງ FIFO ຈາກ API (ເກົ່າສຸດເທິງ) */}
+                {queue.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50/80 p-4 text-center text-xs text-slate-500">
+                        ບໍ່ມີຄິວລໍຖ້າ
+                    </p>
+                ) : (
+                    <div className="queue-scroll-panel max-h-[min(28rem,calc(100vh-18rem))] space-y-2 overflow-y-auto overscroll-y-contain pr-1 pb-0.5">
+                        {queue.map((entry) => (
                             <QueueCard
                                 key={entry.id}
                                 entry={entry}
@@ -108,30 +112,30 @@ function QueuePanel({
                                 onCancel={onCancel}
                                 onOpenPairQueueToTable={onOpenPairQueueToTable}
                             />
-                        ))
-                    )}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
-            <div className="space-y-4 border-t border-slate-200 pt-6">
+            <div className="space-y-3 border-t border-slate-200 pt-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                        <h2 className="text-base font-bold text-slate-900">ຂ້າມແລ້ວ</h2>
-                        <p className="mt-0.5 text-xs text-slate-600">
-                            ກັບມາຮຽກຄິວໃໝ່ໄດ້ · ຂ້າມເກີນ 3 ຄັ້ງຈະຍົກເລີກອັດຕະໂນມັດ
+                        <h2 className="text-sm font-bold text-slate-900">ຂ້າມແລ້ວ</h2>
+                        <p className="mt-0.5 text-[11px] text-slate-600">
+                            ກັບມາຮຽກຄິວໃໝ່ໄດ້ · ຂ້າມຄົບ 2 ຄັ້ງຈະຍົກເລີກອັດຕະໂນມັດ
                         </p>
                     </div>
-                    <span className="rounded-full bg-amber-500 px-2.5 py-0.5 text-xs font-bold text-white">
+                    <span className="rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-bold text-white">
                         {skippedQueue.length}
                     </span>
                 </div>
-                <div className="space-y-4">
-                    {skippedQueue.length === 0 ? (
-                        <p className="rounded-xl border border-dashed border-amber-200/80 bg-amber-50/50 p-5 text-center text-sm text-slate-600">
-                            ບໍ່ມີຄິວທີ່ຂ້າມແລ້ວ
-                        </p>
-                    ) : (
-                        skippedQueue.map((entry) => (
+                {skippedQueue.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-amber-200/80 bg-amber-50/50 p-4 text-center text-xs text-slate-600">
+                        ບໍ່ມີຄິວທີ່ຂ້າມແລ້ວ
+                    </p>
+                ) : (
+                    <div className="queue-scroll-panel max-h-[min(22rem,calc(100vh-22rem))] space-y-2 overflow-y-auto overscroll-y-contain pr-1 pb-0.5">
+                        {skippedQueue.map((entry) => (
                             <QueueCard
                                 key={entry.id}
                                 entry={entry}
@@ -142,17 +146,18 @@ function QueuePanel({
                                 onCancel={onCancel}
                                 onOpenPairQueueToTable={onOpenPairQueueToTable}
                             />
-                        ))
-                    )}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
 }
 
-const inputClass =
-    'mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[#0f2f5c] focus:ring-1 focus:ring-[#0f2f5c]';
-const labelClass = 'text-xs font-bold text-slate-700';
+// ຟອມຄິວ (ເພີ່ມຄິວ / ຈັບໂຕະ): ກອບກວ້າງເຕັມ + ສູງສະໝ່ຳ — font-sans = Noto Sans Lao ໃນ tailwind.config
+const queueFormControlClass =
+    'mt-1.5 block w-full min-h-12 rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20 font-sans';
+const queueFormLabelClass = 'block text-xs font-bold text-slate-700 font-sans';
 
 function findQueueEntry(id, queue, skippedQueue) {
     return queue.find((q) => q.id === id) ?? skippedQueue.find((q) => q.id === id) ?? null;
@@ -166,7 +171,19 @@ function firstTableIdForGroup(groupSize, tables) {
     return String((fit ?? tables[0]).id);
 }
 
-/** Empty add-queue fields; keeps tier_id aligned with current tiers list. */
+/** ລຽງລຳດັບຄິວ: ເກົ່າສຸດຢູ່ເທິງ, ໃໝ່ສຸດຢູ່ລຸ່ມ (FIFO / queued_at), ກົງກັບແຜງ */
+function sortQueueEntriesByJoinedAt(entries) {
+    return [...entries].sort((a, b) => {
+        const ta = a.queued_at ? Date.parse(a.queued_at) : Number.POSITIVE_INFINITY;
+        const tb = b.queued_at ? Date.parse(b.queued_at) : Number.POSITIVE_INFINITY;
+        if (ta !== tb) {
+            return ta - tb;
+        }
+        return (Number(a.id) || 0) - (Number(b.id) || 0);
+    });
+}
+
+// ຄ່າເລີ່ມຟອມເພີ່ມຄິວ — tier_id ກົງກັບແພັກປັດຈຸບັນ
 function emptyAddQueueForm(buffetTiers) {
     return {
         customer_name: '',
@@ -205,7 +222,11 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
     const phoneLookupAbortRef = useRef(null);
     const phoneLookupGenRef = useRef(0);
 
-    const assignableQueue = useMemo(() => [...queue, ...skippedQueue], [queue, skippedQueue]);
+    // ຄິວລໍຖ້າກ່ອນ ຕາມ queued_at, ຕໍ່ດ້ວຍຄິວຂ້າມແລ້ວ — ກົງກັບແຜງ + dropdown ຈັບໂຕະ
+    const assignableQueue = useMemo(
+        () => [...sortQueueEntriesByJoinedAt(queue), ...sortQueueEntriesByJoinedAt(skippedQueue)],
+        [queue, skippedQueue]
+    );
 
     useEffect(() => {
         if (!pairQueueToTable) {
@@ -373,6 +394,9 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
     };
 
     const handleTableClick = (t) => {
+        if (t.status === 'maintenance') {
+            return;
+        }
         if (t.status === 'available') {
             openPairTableToQueue(t);
             return;
@@ -616,11 +640,11 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                         />
                     }
                 >
-                    <form id="add-queue-form" onSubmit={submitAddQueue} className="space-y-4">
-                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <form id="add-queue-form" onSubmit={submitAddQueue} className="space-y-4 font-sans">
+                        <div className="space-y-4">
                             <div>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <label className={labelClass}>ຊື່ລູກຄ້າ</label>
+                                    <label className={queueFormLabelClass}>ຊື່ລູກຄ້າ</label>
                                     {returningCustomerMatch && (
                                         <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-200">
                                             Returning customer
@@ -628,7 +652,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                                     )}
                                 </div>
                                 <input
-                                    className={inputClass}
+                                    className={queueFormControlClass}
                                     value={addForm.data.customer_name}
                                     onChange={(e) => {
                                         nameFromPhoneLookupRef.current = false;
@@ -640,12 +664,12 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                                 )}
                             </div>
                             <div>
-                                <label className={labelClass}>ຈຳນວນຄົນ</label>
+                                <label className={queueFormLabelClass}>ຈຳນວນຄົນ</label>
                                 <input
                                     type="number"
                                     min={1}
                                     max={20}
-                                    className={inputClass}
+                                    className={queueFormControlClass}
                                     value={addForm.data.guest_count}
                                     onChange={(e) => addForm.setData('guest_count', e.target.value)}
                                 />
@@ -653,15 +677,15 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                                     <p className="mt-1 text-xs text-rose-600">{addForm.errors.guest_count}</p>
                                 )}
                             </div>
-                            <div className="sm:col-span-2">
+                            <div>
                                 <div className="flex items-center justify-between gap-2">
-                                    <label className={labelClass}>ເບີໂທລະສັບ</label>
+                                    <label className={queueFormLabelClass}>ເບີໂທລະສັບ</label>
                                     {phoneLookupLoading && (
                                         <span className="text-[10px] font-medium text-slate-400">ກຳລັງຊອກ...</span>
                                     )}
                                 </div>
                                 <input
-                                    className={inputClass}
+                                    className={queueFormControlClass}
                                     inputMode="numeric"
                                     pattern="[0-9]*"
                                     autoComplete="tel"
@@ -669,11 +693,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                                     value={addForm.data.phone}
                                     onChange={(e) => {
                                         const digits = e.target.value.replace(/\D/g, '').slice(0, 15);
-                                        addForm.setData((prev) => ({
-                                            ...prev,
-                                            phone: digits,
-                                            customer_name: digits.length < 8 ? '' : prev.customer_name,
-                                        }));
+                                        addForm.setData('phone', digits);
                                         schedulePhoneCustomerLookup(digits);
                                     }}
                                     onBlur={() => flushPhoneCustomerLookup()}
@@ -682,10 +702,10 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                                     <p className="mt-1 text-xs text-rose-600">{addForm.errors.phone}</p>
                                 )}
                             </div>
-                            <div className="sm:col-span-2">
-                                <label className={labelClass}>ປະເພດບຸບເຟ້</label>
+                            <div>
+                                <label className={queueFormLabelClass}>ປະເພດບຸບເຟ້</label>
                                 <select
-                                    className={inputClass}
+                                    className={queueFormControlClass}
                                     value={addForm.data.tier_id}
                                     onChange={(e) => addForm.setData('tier_id', e.target.value)}
                                 >
@@ -728,22 +748,22 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                 >
                     <div className="space-y-5">
                         <div>
-                            <label className={labelClass}>ເລືອກຄິວທີ່ລໍຖ້າ</label>
-                            <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800">
+                            <label className={queueFormLabelClass}>ເລືອກຄິວທີ່ລໍຖ້າ</label>
+                            <div className="mt-1.5 flex min-h-12 items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 font-sans">
                                 <Users className="h-4 w-4 shrink-0 text-slate-500" />
                                 <span className="font-semibold">{pairQueueEntry.customer_name}</span>
                                 <span className="text-slate-600">· {pairQueueEntry.group_size} ຄົນ</span>
                             </div>
                         </div>
                         <div>
-                            <label className={labelClass}>ເລືອກໂຕະວ່າງ</label>
+                            <label className={queueFormLabelClass}>ເລືອກໂຕະວ່າງ</label>
                             {availableTables.length === 0 ? (
                                 <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                                     ບໍ່ມີໂຕະວ່າງໃນຕອນນີ້
                                 </p>
                             ) : (
                                 <select
-                                    className={inputClass}
+                                    className={queueFormControlClass}
                                     value={pairQueueSelectedTableId}
                                     onChange={(e) => setPairQueueSelectedTableId(e.target.value)}
                                 >
@@ -788,22 +808,22 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                 >
                     <div className="space-y-5">
                         <div>
-                            <label className={labelClass}>ເລືອກໂຕະວ່າງ</label>
-                            <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800">
+                            <label className={queueFormLabelClass}>ເລືອກໂຕະວ່າງ</label>
+                            <div className="mt-1.5 flex min-h-12 items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 font-sans">
                                 <Users className="h-4 w-4 shrink-0 text-slate-500" />
                                 <span className="font-semibold">ໂຕະ {pairTableToQueue.table_no}</span>
                                 <span className="text-slate-600">· {pairTableToQueue.capacity} ບ່ອນນັ່ງ</span>
                             </div>
                         </div>
                         <div>
-                            <label className={labelClass}>ເລືອກຄິວທີ່ລໍຖ້າ</label>
+                            <label className={queueFormLabelClass}>ເລືອກຄິວທີ່ລໍຖ້າ</label>
                             {assignableQueue.length === 0 ? (
                                 <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                                     ບໍ່ມີຄິວລໍຖ້າ
                                 </p>
                             ) : (
                                 <select
-                                    className={inputClass}
+                                    className={queueFormControlClass}
                                     value={pairTableSelectedBookingId}
                                     onChange={(e) => setPairTableSelectedBookingId(e.target.value)}
                                 >

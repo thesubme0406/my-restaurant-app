@@ -15,6 +15,7 @@ use Inertia\Response;
 
 class StockUsageController extends Controller
 {
+    /** ໜ້າລາຍການວັດຖຸດິບ + ປະຫວັດການເບີກ */
     public function index(): Response
     {
         $ingredients = Ingredient::query()
@@ -52,6 +53,7 @@ class StockUsageController extends Controller
         ]);
     }
 
+    /** ບັນທຶກການເບີກ — ກວດສະຕ໋ອກແລ້ວຕັດ ing_quantity */
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
@@ -70,7 +72,14 @@ class StockUsageController extends Controller
 
             if ($qty > $current) {
                 throw ValidationException::withMessages([
-                    'usage_qty' => 'Insufficient stock for '.$ingredient->ing_name,
+                    'usage_qty' => sprintf(
+                        'ວັດຖຸດິບ «%s» ບໍ່ພຽງພໍ: ຕ້ອງການ %s %s ແຕ່ຄົງເຫຼືອ %s %s.',
+                        $ingredient->ing_name,
+                        rtrim(rtrim(number_format($qty, 2, '.', ''), '0'), '.'),
+                        $ingredient->ing_unit,
+                        rtrim(rtrim(number_format($current, 2, '.', ''), '0'), '.'),
+                        $ingredient->ing_unit
+                    ),
                 ]);
             }
 
@@ -92,6 +101,7 @@ class StockUsageController extends Controller
         return redirect()->route('admin.inventory')->with('success', 'ເບີກວັດຖຸດິບສຳເລັດແລ້ວ');
     }
 
+    /** ແກ້ໄຂຈຳນວນເບີກ — ປັບສະຕ໋ອກຕາມຄວາມຕ່າງ */
     public function update(Request $request, UsageDetail $usageDetail): RedirectResponse
     {
         $data = $request->validate([
@@ -109,7 +119,14 @@ class StockUsageController extends Controller
 
             if ($newQty > $availableForUpdate) {
                 throw ValidationException::withMessages([
-                    'usage_qty' => 'Insufficient stock for '.$ingredient->ing_name,
+                    'usage_qty' => sprintf(
+                        'ວັດຖຸດິບ «%s» ບໍ່ພຽງພໍ: ຕ້ອງການ %s %s ແຕ່ເບີກໄດ້ສູງສຸດ %s %s (ຄົງເຫຼືອໃນສາງ + ຄືນຈາກລາຍການນີ້).',
+                        $ingredient->ing_name,
+                        rtrim(rtrim(number_format($newQty, 2, '.', ''), '0'), '.'),
+                        $ingredient->ing_unit,
+                        rtrim(rtrim(number_format($availableForUpdate, 2, '.', ''), '0'), '.'),
+                        $ingredient->ing_unit
+                    ),
                 ]);
             }
 
@@ -127,6 +144,7 @@ class StockUsageController extends Controller
         return redirect()->route('admin.inventory')->with('success', 'ແກ້ໄຂປະຫວັດການເບີກສຳເລັດແລ້ວ');
     }
 
+    /** ລຶບປະຫວັດ — ຄືນສະຕ໋ອກເຂົ້າວັດຖຸດິບ */
     public function destroy(UsageDetail $usageDetail): RedirectResponse
     {
         DB::transaction(function () use ($usageDetail): void {
@@ -146,4 +164,3 @@ class StockUsageController extends Controller
         return redirect()->route('admin.inventory')->with('success', 'ລຶບປະຫວັດການເບີກສຳເລັດແລ້ວ');
     }
 }
-

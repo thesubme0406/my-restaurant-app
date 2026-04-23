@@ -11,7 +11,7 @@ use Illuminate\Http\Request;
 class BuffetTierMenuController extends Controller
 {
     /**
-     * Return menu IDs linked to this tier via the menu_detail pivot (buffet_tier_id / menu_id).
+     * Return menu IDs linked to this tier via the buffet_tier_menu pivot (buffet_tier_id / menu_id).
      */
     public function menuIds(BuffetTier $buffetTier): JsonResponse
     {

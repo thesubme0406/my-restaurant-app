@@ -25,6 +25,7 @@ class Booking extends Model
         'queue_day',
         'guest_count',
         'expected_time',
+        'queued_at',
         'status',
         'skip_count',
     ];
@@ -33,6 +34,7 @@ class Booking extends Model
     {
         return [
             'expected_time' => 'datetime',
+            'queued_at' => 'datetime',
             'queue_day' => 'date',
         ];
     }

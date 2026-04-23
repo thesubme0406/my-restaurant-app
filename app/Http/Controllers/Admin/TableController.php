@@ -18,13 +18,19 @@ class TableController extends Controller
             'table_no' => ['required', 'string', 'max:10', Rule::unique('tables', 'table_no')],
             'capacity' => ['required', 'integer', 'min:1', 'max:127'],
             'zone' => ['nullable', 'string', Rule::in(['standard', 'vip'])],
-            'status' => ['required', 'string', Rule::in(['available', 'occupied', 'maintenance'])],
+            'readiness' => ['required', 'string', Rule::in(['ready', 'not_ready'])],
         ]);
 
         $data['capacity'] = (int) $data['capacity'];
         $data['zone'] = $data['zone'] ?? 'standard';
 
-        Table::query()->create($data);
+        Table::query()->create([
+            'table_no' => $data['table_no'],
+            'capacity' => $data['capacity'],
+            'zone' => $data['zone'],
+            'readiness' => $data['readiness'],
+            'usage_status' => 'available',
+        ]);
 
         return redirect()->route('admin.master-data', ['section' => 'tables']);
     }
@@ -35,13 +41,18 @@ class TableController extends Controller
             'table_no' => ['required', 'string', 'max:10', Rule::unique('tables', 'table_no')->ignore($table->id)],
             'capacity' => ['required', 'integer', 'min:1', 'max:127'],
             'zone' => ['nullable', 'string', Rule::in(['standard', 'vip'])],
-            'status' => ['required', 'string', Rule::in(['available', 'occupied', 'maintenance'])],
+            'readiness' => ['required', 'string', Rule::in(['ready', 'not_ready'])],
         ]);
 
         $data['capacity'] = (int) $data['capacity'];
         $data['zone'] = $data['zone'] ?? 'standard';
 
-        $table->update($data);
+        $table->update([
+            'table_no' => $data['table_no'],
+            'capacity' => $data['capacity'],
+            'zone' => $data['zone'],
+            'readiness' => $data['readiness'],
+        ]);
 
         return redirect()->route('admin.master-data', ['section' => 'tables']);
     }

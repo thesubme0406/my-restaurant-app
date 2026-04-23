@@ -8,12 +8,12 @@ use App\Models\MenuCatg;
 use Illuminate\Database\Seeder;
 
 /**
- * Links menus to buffet tiers via the menu_detail pivot (buffet_tier_id, menu_id).
+ * Links menus to buffet tiers via the buffet_tier_menu pivot (buffet_tier_id, menu_id).
  *
  * Rules:
- * - Silver: all Drinks + all Dessert + 2 basic Sushi items (lowest id in Sushi category).
- * - Gold: everything in Silver + all remaining Sushi items (full Sushi category).
- * - Deluxe: all 20 menu items (every category).
+ * - Silver: Drinks + Appetizers + 2 basic Sushi items.
+ * - Gold: everything in Silver + all Sushi items.
+ * - Deluxe: all available menu items.
  */
 class BuffetTierMappingSeeder extends Seeder
 {
@@ -31,12 +31,11 @@ class BuffetTierMappingSeeder extends Seeder
 
         $catId = static fn (string $name): ?int => MenuCatg::query()->where('catg_name', $name)->value('id');
 
-        $idSashimi = $catId('Sashimi');
         $idSushi = $catId('Sushi');
         $idDrinks = $catId('Drinks');
-        $idDessert = $catId('Dessert');
+        $idAppetizers = $catId('Appetizers');
 
-        if ($idSashimi === null || $idSushi === null || $idDrinks === null || $idDessert === null) {
+        if ($idSushi === null || $idDrinks === null || $idAppetizers === null) {
             $this->command?->warn('BuffetTierMappingSeeder skipped: menu categories missing (run MenuCategorySeeder + MenuSeeder).');
 
             return;
@@ -49,19 +48,18 @@ class BuffetTierMappingSeeder extends Seeder
             ->all();
 
         $drinkIds = $idsForCategory($idDrinks);
-        $dessertIds = $idsForCategory($idDessert);
+        $appetizerIds = $idsForCategory($idAppetizers);
         $sushiIds = $idsForCategory($idSushi);
-        $sashimiIds = $idsForCategory($idSashimi);
 
-        if (count($drinkIds) + count($dessertIds) + count($sushiIds) + count($sashimiIds) < 20) {
-            $this->command?->warn('BuffetTierMappingSeeder skipped: expected 20 menus across four categories.');
+        if (count($drinkIds) + count($appetizerIds) + count($sushiIds) < 15) {
+            $this->command?->warn('BuffetTierMappingSeeder skipped: expected at least 15 menus across Sushi/Drinks/Appetizers.');
 
             return;
         }
 
         $basicSushiIds = array_slice($sushiIds, 0, 2);
 
-        $silverIds = array_values(array_unique(array_merge($drinkIds, $dessertIds, $basicSushiIds)));
+        $silverIds = array_values(array_unique(array_merge($drinkIds, $appetizerIds, $basicSushiIds)));
         sort($silverIds);
 
         $goldIds = array_values(array_unique(array_merge($silverIds, $sushiIds)));

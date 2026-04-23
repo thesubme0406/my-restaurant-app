@@ -3,19 +3,45 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\Payment;
 use App\Models\Service;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PaymentController extends Controller
 {
+    private function paymentsIndexRoute(Request $request): string
+    {
+        return str_starts_with($request->path(), 'admin/')
+            ? 'admin.payments'
+            : 'staff.payments';
+    }
+
+    /** ຄິວທີ່ນັ່ງໂຕະແລ້ວແຕ່ບໍ່ມີເຊດຊັນໃນ services — ເຕີມໃຫ້ລາຍການຊຳລະຄົບ. */
+    private function materializeMissingServicesForSeatedBookings(): void
+    {
+        Booking::query()
+            ->whereNotNull('table_id')
+            ->whereIn('status', ['called', 'confirmed'])
+            ->whereDoesntHave('services', function ($q): void {
+                $q->where('status', 'in_service')
+                    ->whereDoesntHave('payment');
+            })
+            ->orderBy('id')
+            ->chunkById(100, function ($bookings): void {
+                foreach ($bookings as $booking) {
+                    Service::ensureOpenSessionForSeatedBooking($booking);
+                }
+            });
+    }
+
     private function mapActiveService(Service $service): array
     {
         $booking = $service->booking;
@@ -41,6 +67,38 @@ class PaymentController extends Controller
         ];
     }
 
+    /** ກອງຕາຕະລາງຊຳລະ + ສະຖິຕິໃຫ້ກົງກັນ */
+    private function applyPaymentListFilters(Builder $query, array $filters): void
+    {
+        if ($filters['search'] !== '') {
+            $q = $filters['search'];
+            $query->where(function ($sub) use ($q): void {
+                $sub->where('service_id', 'like', "%{$q}%")
+                    ->orWhere('staff_id', 'like', "%{$q}%");
+            });
+        }
+        if (in_array($filters['method'], ['cash', 'transfer'], true)) {
+            $query->where('method', $filters['method']);
+        }
+        if ($filters['from'] !== '') {
+            $query->whereDate('payment_time', '>=', $filters['from']);
+        }
+        if ($filters['to'] !== '') {
+            $query->whereDate('payment_time', '<=', $filters['to']);
+        }
+    }
+
+    /** ຄຳນວນສະຖິຕິຕາມຊ່ວງທີ່ກອງ (ກົງກັບລາຍການດ້ານລຸ່ມ) */
+    private function summarizeFilteredPayments(Builder $base): array
+    {
+        return [
+            'count' => (clone $base)->count(),
+            'total' => (float) (clone $base)->sum('total_amount'),
+            'cash' => (float) (clone $base)->where('method', 'cash')->sum('total_amount'),
+            'transfer' => (float) (clone $base)->where('method', 'transfer')->sum('total_amount'),
+        ];
+    }
+
     public function index(Request $request): Response
     {
         $filters = [
@@ -53,23 +111,7 @@ class PaymentController extends Controller
         $paymentsQuery = Payment::query()
             ->with(['service.booking.customer', 'service.booking.buffetTier', 'service.serviceDetails.table', 'staff'])
             ->orderByDesc('payment_time');
-
-        if ($filters['search'] !== '') {
-            $q = $filters['search'];
-            $paymentsQuery->where(function ($query) use ($q): void {
-                $query->where('service_id', 'like', "%{$q}%")
-                    ->orWhere('staff_id', 'like', "%{$q}%");
-            });
-        }
-        if (in_array($filters['method'], ['cash', 'transfer'], true)) {
-            $paymentsQuery->where('method', $filters['method']);
-        }
-        if ($filters['from'] !== '') {
-            $paymentsQuery->whereDate('payment_time', '>=', $filters['from']);
-        }
-        if ($filters['to'] !== '') {
-            $paymentsQuery->whereDate('payment_time', '<=', $filters['to']);
-        }
+        $this->applyPaymentListFilters($paymentsQuery, $filters);
 
         $payments = $paymentsQuery
             ->get()
@@ -88,35 +130,46 @@ class PaymentController extends Controller
                     'table_no' => $tableNo,
                     'total_amount' => (float) $p->total_amount,
                     'method' => $p->method,
+                    'note' => $p->note,
                     'payment_time' => $p->payment_time?->format('m/d/Y, h:i A') ?? '—',
                     'payment_date' => $p->payment_time?->toDateString(),
                 ];
             })
             ->all();
 
-        $today = Carbon::today();
-        $todayQuery = Payment::query()->whereDate('payment_time', $today);
-        $summary = [
-            'count' => (clone $todayQuery)->count(),
-            'total' => (float) ((clone $todayQuery)->sum('total_amount')),
-            'cash' => (float) ((clone $todayQuery)->where('method', 'cash')->sum('total_amount')),
-            'transfer' => (float) ((clone $todayQuery)->where('method', 'transfer')->sum('total_amount')),
-        ];
+        $summaryBase = Payment::query();
+        $this->applyPaymentListFilters($summaryBase, $filters);
+        $summary = $this->summarizeFilteredPayments($summaryBase);
+
+        $this->materializeMissingServicesForSeatedBookings();
+        $activeTables = Service::query()
+            ->with(['booking.customer', 'booking.buffetTier', 'serviceDetails.table', 'payment'])
+            ->where('status', 'in_service')
+            ->whereDoesntHave('payment')
+            ->orderBy('start_time')
+            ->get()
+            ->map(fn (Service $service): array => $this->mapActiveService($service))
+            ->values()
+            ->all();
 
         return Inertia::render('Admin/Payments', [
             'payments' => $payments,
             'summary' => $summary,
             'filters' => $filters,
+            'activeTables' => $activeTables,
         ]);
     }
 
     public function getActiveServices(Request $request): JsonResponse
     {
+        $this->materializeMissingServicesForSeatedBookings();
+
         $q = (string) $request->query('q', '');
 
+        // ສະເພາະ in_service ທີ່ຍັງບໍ່ຊຳລະ — ບໍ່ຈຳກັດຈຳນວນ; ບໍ່ໃຊ້ completed ທີ່ນີ້ເພື່ອບໍ່ສັບສົນກັບປະຫວັດ.
         $rows = Service::query()
             ->with(['booking.customer', 'booking.buffetTier', 'serviceDetails.table', 'payment'])
-            ->whereIn('status', ['in_service', 'completed'])
+            ->where('status', 'in_service')
             ->whereDoesntHave('payment')
             ->when($q !== '', function ($query) use ($q): void {
                 $query->where(function ($sub) use ($q): void {
@@ -157,6 +210,10 @@ class PaymentController extends Controller
             return response()->json(['found' => false, 'message' => 'Service already paid']);
         }
 
+        if ($service->status !== 'in_service') {
+            return response()->json(['found' => false, 'message' => 'Service not open for payment']);
+        }
+
         return response()->json(array_merge(
             ['found' => true],
             $this->mapActiveService($service)
@@ -170,6 +227,11 @@ class PaymentController extends Controller
             'total_amount' => ['required', 'numeric', 'gte:0'],
             'method' => ['required', 'string', Rule::in(['cash', 'transfer'])],
             'received_amount' => ['nullable', 'numeric', 'gte:0'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'search' => ['nullable', 'string', 'max:255'],
+            'method_filter' => ['nullable', 'string', Rule::in(['', 'cash', 'transfer'])],
+            'from' => ['nullable', 'string', 'max:32'],
+            'to' => ['nullable', 'string', 'max:32'],
         ]);
 
         $staffId = $request->user('staff')?->id;
@@ -192,6 +254,7 @@ class PaymentController extends Controller
                 'staff_id' => $staffId,
                 'total_amount' => $data['total_amount'],
                 'method' => $data['method'],
+                'note' => $data['note'] ?? null,
                 'payment_time' => now(),
             ]);
 
@@ -204,19 +267,33 @@ class PaymentController extends Controller
                 $service->booking->update(['status' => 'finished']);
             }
 
+            // ຊິງຄ໌ usage_status ໃຫ້ກົງກັບຄວາມຈິງຫຼັງຊຳລະ (ສະຖານະມີລູກຄ້າເບິ່ງຈາກບໍລິການເປັນຫຼັກ).
             foreach ($service->serviceDetails as $detail) {
-                $detail->table?->update(['status' => 'available']);
+                $detail->table?->update(['usage_status' => 'available']);
             }
         });
 
-        return redirect()->route('admin.payments')->with('success', 'ຊຳລະເງິນສຳເລັດແລ້ວ');
+        $query = array_filter([
+            'search' => (string) ($data['search'] ?? ''),
+            'method' => (string) ($data['method_filter'] ?? ''),
+            'from' => (string) ($data['from'] ?? ''),
+            'to' => (string) ($data['to'] ?? ''),
+        ], fn (string $v): bool => $v !== '');
+
+        return redirect()->route($this->paymentsIndexRoute($request), $query)->with('success', 'ຊຳລະເງິນສຳເລັດແລ້ວ');
     }
 
-    public function destroy(Payment $payment): RedirectResponse
+    public function destroy(Request $request, Payment $payment): RedirectResponse
     {
         $payment->delete();
 
-        return redirect()->route('admin.payments')->with('success', 'ລຶບລາຍການຊຳລະເງິນສຳເລັດແລ້ວ');
+        $query = array_filter([
+            'search' => (string) $request->query('search', ''),
+            'method' => (string) $request->query('method', ''),
+            'from' => (string) $request->query('from', ''),
+            'to' => (string) $request->query('to', ''),
+        ], fn (string $v): bool => $v !== '');
+
+        return redirect()->route($this->paymentsIndexRoute($request), $query)->with('success', 'ລຶບລາຍການຊຳລະເງິນສຳເລັດແລ້ວ');
     }
 }
-

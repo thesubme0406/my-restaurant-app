@@ -44,6 +44,6 @@ class Menu extends Model
 
     public function buffetTiers(): BelongsToMany
     {
-        return $this->belongsToMany(BuffetTier::class, 'menu_detail', 'menu_id', 'buffet_tier_id');
+        return $this->belongsToMany(BuffetTier::class, 'buffet_tier_menu', 'menu_id', 'buffet_tier_id');
     }
 }

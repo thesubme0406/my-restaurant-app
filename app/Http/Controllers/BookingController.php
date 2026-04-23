@@ -135,6 +135,7 @@ class BookingController extends Controller
                         'queue_day' => $queueDayString,
                         'guest_count' => (int) $validated['guest_count'],
                         'expected_time' => $bookingDate,
+                        'queued_at' => $bookingDate,
                         'status' => 'pending',
                         'skip_count' => 0,
                     ]);

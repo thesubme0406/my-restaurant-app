@@ -1,7 +1,9 @@
+// ສັ່ງຊື້ວັດຖຸດິບ — ກະຕ່າ + ບັນທຶກສັ່ງຊື້
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { formatAmount } from '@/utils/formatAmount';
 
 const primary = '#194c9f';
 
@@ -10,7 +12,7 @@ function formatQty(value) {
     if (Number.isNaN(n)) {
         return '—';
     }
-    return n % 1 === 0 ? String(n) : n.toFixed(2);
+    return formatAmount(n);
 }
 
 export default function PurchasePage({ ingredients = [], suppliers = [] }) {

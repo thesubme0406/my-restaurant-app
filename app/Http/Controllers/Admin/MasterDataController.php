@@ -8,6 +8,7 @@ use App\Models\Ingredient;
 use App\Models\Menu;
 use App\Models\MenuCatg;
 use App\Models\News;
+use App\Models\Service;
 use App\Models\Staff;
 use App\Models\Supplier;
 use App\Models\Table;
@@ -85,17 +86,24 @@ class MasterDataController extends Controller
 
         $tableRows = [];
         if ($section === 'tables') {
+            // ສະຖານະນັ່ງຄິວສະແດງຕາມບໍລິການຄ້າງຊຳລະ (ກົງແຜງຄິວ) — ບໍ່ໃຊ້ແຕ່ຄ່າ usage_status ໃນຖານຂໍ້ມູນທີ່ອາດເກີນ.
+            $occupiedTableSet = Service::activeUnpaidOccupiedTableIdSet();
             $tableRows = Table::query()
                 ->orderBy('zone')
                 ->orderBy('table_no')
                 ->get()
-                ->map(fn (Table $t): array => [
-                    'id' => $t->id,
-                    'table_no' => $t->table_no,
-                    'capacity' => (int) $t->capacity,
-                    'zone' => $t->zone ?? 'standard',
-                    'status' => $t->status,
-                ])
+                ->map(function (Table $t) use ($occupiedTableSet): array {
+                    $derivedOccupied = isset($occupiedTableSet[(int) $t->id]);
+
+                    return [
+                        'id' => $t->id,
+                        'table_no' => $t->table_no,
+                        'capacity' => (int) $t->capacity,
+                        'zone' => $t->zone ?? 'standard',
+                        'readiness' => $t->readiness ?? 'ready',
+                        'usage_status' => $derivedOccupied ? 'occupied' : 'available',
+                    ];
+                })
                 ->all();
         }
 
@@ -219,7 +227,7 @@ class MasterDataController extends Controller
                 ])
                 ->all();
 
-            $linkRows = DB::table('menu_detail')->select('buffet_tier_id', 'menu_id')->orderBy('menu_id')->get();
+            $linkRows = DB::table('buffet_tier_menu')->select('buffet_tier_id', 'menu_id')->orderBy('menu_id')->get();
             foreach ($linkRows as $row) {
                 $tid = (int) $row->buffet_tier_id;
                 if (! isset($tierMenuLinks[$tid])) {

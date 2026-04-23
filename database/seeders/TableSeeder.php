@@ -18,7 +18,8 @@ class TableSeeder extends Seeder
                 'table_no' => 'T-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
                 'capacity' => $capacities[($i - 1) % $capacities->count()],
                 'zone' => $i <= 8 ? 'standard' : 'vip',
-                'status' => $i <= 6 ? 'available' : 'occupied',
+                'readiness' => 'ready',
+                'usage_status' => $i <= 6 ? 'available' : 'occupied',
             ];
         }
 

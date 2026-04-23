@@ -7,16 +7,15 @@ import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
+import { formatAmount } from '@/utils/formatAmount';
 
-/** Large price digits only (commas); ກີບ is shown separately on the card. */
+// ລາຄາ: ຈຸດທສັນຍະເຊັ່ນ 1,000,000
 function formatPriceDigits(price) {
     const n = Number(price);
     if (Number.isNaN(n)) {
         return '—';
     }
-    return Number.isInteger(n)
-        ? n.toLocaleString('en-US')
-        : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return formatAmount(n);
 }
 
 function BuffetTierCard({ tier }) {
