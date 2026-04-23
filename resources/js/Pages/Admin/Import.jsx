@@ -1,18 +1,13 @@
 import MoneyAmountInput from '@/Components/MoneyAmountInput';
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import FlashAlert from '@/Components/Admin/Common/FlashAlert';
+import StatusBadge from '@/Components/Admin/Common/StatusBadge';
 import { Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { formatAmount } from '@/utils/formatAmount';
 
 const primary = '#194c9f';
-
-function statusBadge(status) {
-    if (status === 'Received' || status === 'Completed') {
-        return <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">ເສັດສິ້ນ</span>;
-    }
-    return <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700">ລໍຖ້າຈັດສົ່ງ</span>;
-}
 
 export default function ImportPage({ purchaseOrders = [] }) {
     const page = usePage();
@@ -93,15 +88,7 @@ export default function ImportPage({ purchaseOrders = [] }) {
 
             <div className="-mx-4 -mt-2 bg-slate-50 px-4 pb-12 pt-4 md:-mx-8 md:px-8 md:pb-14 md:pt-6">
                 <div className="mx-auto max-w-7xl space-y-6">
-                    {(flashSuccess || pageErrors?.po_id || pageErrors?.items) && (
-                        <div className={`rounded-2xl border px-4 py-3 text-sm shadow-sm sm:px-5 ${
-                            flashSuccess
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                : 'border-rose-200 bg-rose-50 text-rose-800'
-                        }`}>
-                            {flashSuccess || pageErrors.po_id || pageErrors.items}
-                        </div>
-                    )}
+                    <FlashAlert successMessage={flashSuccess} errorMessage={pageErrors.po_id || pageErrors.items} />
 
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
                         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-200/80 sm:p-5">
@@ -139,7 +126,13 @@ export default function ImportPage({ purchaseOrders = [] }) {
                                                 <td className="px-3 py-2">{po.po_date || '—'}</td>
                                                 <td className="max-w-[180px] truncate px-3 py-2">{po.supplier_name}</td>
                                                 <td className="px-3 py-2">{po.item_count} ລາຍການ</td>
-                                                <td className="px-3 py-2">{statusBadge(po.po_status)}</td>
+                                                <td className="px-3 py-2">
+                                                    {po.po_status === 'Received' || po.po_status === 'Completed' ? (
+                                                        <StatusBadge label="ເສັດສິ້ນ" tone="success" />
+                                                    ) : (
+                                                        <StatusBadge label="ລໍຖ້າຈັດສົ່ງ" tone="warning" />
+                                                    )}
+                                                </td>
                                             </tr>
                                         ))}
                                     </tbody>
