@@ -8,6 +8,7 @@ import {
 } from '@headlessui/react';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import FlashAlert from '@/Components/Admin/Common/FlashAlert';
 import { CalendarDays, ChevronDown, Pencil, Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { formatAmount } from '@/utils/formatAmount';
@@ -136,17 +137,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
 
             <div className="-mx-4 -mt-2 bg-slate-50 px-4 pb-12 pt-4 md:-mx-8 md:px-8 md:pb-14 md:pt-6">
                 <div className="mx-auto max-w-7xl space-y-6">
-                    {(flashSuccess || pageErrors?.ing_id || pageErrors?.usage_qty) && (
-                        <div
-                            className={`rounded-2xl border px-4 py-3 text-sm shadow-sm sm:px-5 ${
-                                flashSuccess
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                    : 'border-rose-200 bg-rose-50 text-rose-800'
-                            }`}
-                        >
-                            {flashSuccess || pageErrors.ing_id || pageErrors.usage_qty}
-                        </div>
-                    )}
+                    <FlashAlert successMessage={flashSuccess} errorMessage={pageErrors.ing_id || pageErrors.usage_qty} />
 
                     <section className="rounded-2xl border border-slate-100 bg-white p-5 font-sans shadow-md shadow-slate-200/80">
                         <h2 className="text-2xl font-bold tracking-tight text-[#0f2744]">ຟອມເບີກວັດຖຸດິບ</h2>

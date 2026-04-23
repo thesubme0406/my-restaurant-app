@@ -1,6 +1,7 @@
 // ຊຳລະເງິນ: ໂຕະກຳລັງໃຊ້ + ປະຫວັດ + ສະຖິຕິຕາມວັນທີ
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import StatusBadge from '@/Components/Admin/Common/StatusBadge';
 import { Landmark, Loader2, Printer, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
@@ -31,13 +32,6 @@ const methodOptions = [
 ];
 
 const payMethods = methodOptions.filter((x) => x.value);
-
-function methodBadge(method) {
-    if (method === 'cash') {
-        return <span className="inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">ເງິນສົດ</span>;
-    }
-    return <span className="inline-flex rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-700">ເງິນໂອນ</span>;
-}
 
 function routeNamesFromUrl(url) {
     const path = typeof url === 'string' ? url.split('?')[0] : '';
@@ -413,7 +407,13 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                                 {row.table_no}
                                             </td>
                                             <td className="px-3 py-2 font-semibold">{formatAmount(row.total_amount)} K</td>
-                                            <td className="px-3 py-2">{methodBadge(row.method)}</td>
+                                            <td className="px-3 py-2">
+                                                {row.method === 'cash' ? (
+                                                    <StatusBadge label="ເງິນສົດ" tone="success" />
+                                                ) : (
+                                                    <StatusBadge label="ເງິນໂອນ" tone="info" />
+                                                )}
+                                            </td>
                                             <td className="max-w-[140px] truncate px-3 py-2 text-slate-600">{row.note || '—'}</td>
                                             <td className="px-3 py-2">{row.payment_time}</td>
                                             <td className="px-3 py-2">

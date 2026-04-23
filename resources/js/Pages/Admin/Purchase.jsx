@@ -1,6 +1,7 @@
 // ສັ່ງຊື້ວັດຖຸດິບ — ກະຕ່າ + ບັນທຶກສັ່ງຊື້
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import FlashAlert from '@/Components/Admin/Common/FlashAlert';
 import { Search, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { formatAmount } from '@/utils/formatAmount';
@@ -85,15 +86,7 @@ export default function PurchasePage({ ingredients = [], suppliers = [] }) {
 
             <div className="-mx-4 -mt-2 bg-slate-50 px-4 pb-12 pt-4 md:-mx-8 md:px-8 md:pb-14 md:pt-6">
                 <div className="mx-auto max-w-7xl space-y-6">
-                    {(flashSuccess || pageErrors?.sup_id || pageErrors?.items) && (
-                        <div className={`rounded-2xl border px-4 py-3 text-sm shadow-sm sm:px-5 ${
-                            flashSuccess
-                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                                : 'border-rose-200 bg-rose-50 text-rose-800'
-                        }`}>
-                            {flashSuccess || pageErrors.sup_id || pageErrors.items}
-                        </div>
-                    )}
+                    <FlashAlert successMessage={flashSuccess} errorMessage={pageErrors.sup_id || pageErrors.items} />
 
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
                         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-200/80 sm:p-5">
