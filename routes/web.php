@@ -67,16 +67,8 @@ Route::middleware(['auth:staff'])->prefix('queue-dashboard')->name('queue-dashbo
     Route::post('/assignments', [QueueDashboardController::class, 'assignBookingToTable'])->name('assignments.store');
 });
 
-Route::middleware(['auth:customer'])->prefix('customer')->name('customer.')->group(function () {
+Route::prefix('customer')->name('customer.')->group(function () {
     Route::get('/home', CustomerHomeController::class)->name('home');
-
-    Route::get('/reserve', [ReserveController::class, 'index'])->name('reserve');
-    Route::get('/reserve/stats', [ReserveController::class, 'stats'])->name('reserve.stats');
-    Route::post('/reserve', [BookingController::class, 'store'])->name('reserve.store');
-    Route::patch('/reserve/{booking}/cancel', [BookingController::class, 'cancel'])->name('reserve.cancel');
-    Route::get('/reserve/new', function () {
-        return redirect()->route('customer.reserve');
-    })->name('reserve.new');
 
     Route::get('/menu', [CustomerMenuController::class, 'index'])->name('menu');
 
@@ -87,17 +79,28 @@ Route::middleware(['auth:customer'])->prefix('customer')->name('customer.')->gro
 
     Route::get('/about', CustomerAboutController::class)->name('about');
 
-    Route::get('/profile', [CustomerProfileController::class, 'edit'])->name('profile');
-    Route::patch('/profile', [CustomerProfileController::class, 'update'])->name('profile.update');
-
     Route::get('/dashboard', CustomerHomeController::class)->name('dashboard');
 });
 
+Route::middleware(['auth:customer'])->prefix('customer')->name('customer.')->group(function () {
+    Route::get('/reserve', [ReserveController::class, 'index'])->name('reserve');
+    Route::get('/reserve/stats', [ReserveController::class, 'stats'])->name('reserve.stats');
+    Route::post('/reserve', [BookingController::class, 'store'])->name('reserve.store');
+    Route::patch('/reserve/{booking}/cancel', [BookingController::class, 'cancel'])->name('reserve.cancel');
+    Route::get('/reserve/new', function () {
+        return redirect()->route('customer.reserve');
+    })->name('reserve.new');
+
+    Route::get('/profile', [CustomerProfileController::class, 'edit'])->name('profile');
+    Route::patch('/profile', [CustomerProfileController::class, 'update'])->name('profile.update');
+});
+
+Route::get('/home', CustomerHomeController::class)->name('home');
 Route::middleware(['auth:customer'])->get('/reserve', fn () => redirect()->route('customer.reserve'));
-Route::middleware(['auth:customer'])->get('/menu', fn () => redirect()->route('customer.menu'));
-Route::middleware(['auth:customer'])->get('/news', fn () => redirect()->route('customer.news'));
-Route::middleware(['auth:customer'])->get('/contact', fn () => redirect()->route('customer.contact'));
-Route::middleware(['auth:customer'])->get('/about', fn () => redirect()->route('customer.about'));
+Route::get('/menu', fn () => redirect()->route('customer.menu'));
+Route::get('/news', fn () => redirect()->route('customer.news'));
+Route::get('/contact', fn () => redirect()->route('customer.contact'));
+Route::get('/about', fn () => redirect()->route('customer.about'));
 Route::middleware(['auth:customer'])->get('/profile', fn () => redirect()->route('customer.profile'));
 
 Route::middleware(['auth:staff'])->prefix('staff')->name('staff.')->group(function () {
@@ -117,12 +120,6 @@ Route::middleware(['auth:staff'])->prefix('staff')->name('staff.')->group(functi
 
     Route::get('/import', [StockInController::class, 'index'])->name('import');
     Route::post('/import', [StockInController::class, 'store'])->name('import.store');
-
-    Route::get('/payments', [PaymentController::class, 'index'])->name('payments');
-    Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
-    Route::get('/payments/service-lookup', [PaymentController::class, 'lookupService'])->name('payments.lookup-service');
-    Route::get('/payments/active-services', [PaymentController::class, 'getActiveServices'])->name('payments.active-services');
-    Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
 
     Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');

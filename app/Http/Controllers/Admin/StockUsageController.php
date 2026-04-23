@@ -15,6 +15,11 @@ use Inertia\Response;
 
 class StockUsageController extends Controller
 {
+    private function inventoryRouteName(Request $request): string
+    {
+        return $request->routeIs('staff.*') ? 'staff.inventory' : 'admin.inventory';
+    }
+
     /** ໜ້າລາຍການວັດຖຸດິບ + ປະຫວັດການເບີກ */
     public function index(): Response
     {
@@ -98,7 +103,7 @@ class StockUsageController extends Controller
             $ingredient->decrement('ing_quantity', $qty);
         });
 
-        return redirect()->route('admin.inventory')->with('success', 'ເບີກວັດຖຸດິບສຳເລັດແລ້ວ');
+        return redirect()->route($this->inventoryRouteName($request))->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
 
     /** ແກ້ໄຂຈຳນວນເບີກ — ປັບສະຕ໋ອກຕາມຄວາມຕ່າງ */
@@ -141,11 +146,11 @@ class StockUsageController extends Controller
             $detail->stockUsage?->update(['usage_detail' => $data['usage_detail'] ?? null]);
         });
 
-        return redirect()->route('admin.inventory')->with('success', 'ແກ້ໄຂປະຫວັດການເບີກສຳເລັດແລ້ວ');
+        return redirect()->route($this->inventoryRouteName($request))->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
 
     /** ລຶບປະຫວັດ — ຄືນສະຕ໋ອກເຂົ້າວັດຖຸດິບ */
-    public function destroy(UsageDetail $usageDetail): RedirectResponse
+    public function destroy(Request $request, UsageDetail $usageDetail): RedirectResponse
     {
         DB::transaction(function () use ($usageDetail): void {
             $detail = UsageDetail::query()->with('stockUsage')->lockForUpdate()->findOrFail($usageDetail->id);
@@ -161,6 +166,6 @@ class StockUsageController extends Controller
             }
         });
 
-        return redirect()->route('admin.inventory')->with('success', 'ລຶບປະຫວັດການເບີກສຳເລັດແລ້ວ');
+        return redirect()->route($this->inventoryRouteName($request))->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
 }

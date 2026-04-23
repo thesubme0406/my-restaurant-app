@@ -12,7 +12,6 @@ import {
     Menu,
     Package,
     ShoppingCart,
-    TestTube2,
     UserRound,
     X,
 } from 'lucide-react';
@@ -33,11 +32,10 @@ const managerMenus = [
 
 const staffMenus = [
     { key: 'dashboard', label: 'ແຜງຄວບຄຸມ', href: '/staff/dashboard', icon: LayoutDashboard },
-    { key: 'layout-test', label: 'Layout test', href: '/staff/test', icon: TestTube2 },
     { key: 'ingredients', label: 'ເບີກວັດຖຸດິບ', href: '/staff/inventory', icon: Package },
     { key: 'orders', label: 'ສັ່ງຊື້ວັດຖຸດິບ', href: '/staff/purchase', icon: ShoppingCart },
     { key: 'stock-in', label: 'ນຳເຂົ້າວັດຖຸດິບ', href: '/staff/import', icon: Download },
-    { key: 'payments', label: 'ຊຳລະເງິນ', href: '/staff/payments', icon: CreditCard },
+    { key: 'profile', label: 'ຈັດການໂປຣໄຟລ', href: '/staff/profile', icon: UserRound },
 ];
 
 function resolveHeaderTitle(pathname, menus, explicitTitle) {

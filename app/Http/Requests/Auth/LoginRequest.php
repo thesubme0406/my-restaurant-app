@@ -8,7 +8,6 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
@@ -29,7 +28,6 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'account_type' => ['required', 'string', Rule::in(['staff', 'customer'])],
             'phone' => ['required', 'string', 'max:32'],
             'password' => ['required', 'string'],
         ];
@@ -40,21 +38,20 @@ class LoginRequest extends FormRequest
      *
      * @throws ValidationException
      */
-    public function authenticate(): void
+    public function authenticate(string $guard): void
     {
-        $this->ensureIsNotRateLimited();
+        $this->ensureIsNotRateLimited($guard);
+        $phone = $this->normalizedPhone();
 
-        $guard = $this->string('account_type')->toString();
-
-        if (! Auth::guard($guard)->attempt($this->only('phone', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+        if (! Auth::guard($guard)->attempt(['phone' => $phone, 'password' => $this->string('password')->toString()], $this->boolean('remember'))) {
+            RateLimiter::hit($this->throttleKey($guard));
 
             throw ValidationException::withMessages([
                 'phone' => trans('auth.failed'),
             ]);
         }
 
-        RateLimiter::clear($this->throttleKey());
+        RateLimiter::clear($this->throttleKey($guard));
     }
 
     /**
@@ -62,15 +59,15 @@ class LoginRequest extends FormRequest
      *
      * @throws ValidationException
      */
-    public function ensureIsNotRateLimited(): void
+    public function ensureIsNotRateLimited(string $guard): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        if (! RateLimiter::tooManyAttempts($this->throttleKey($guard), 5)) {
             return;
         }
 
         event(new Lockout($this));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = RateLimiter::availableIn($this->throttleKey($guard));
 
         throw ValidationException::withMessages([
             'phone' => trans('auth.throttle', [
@@ -83,8 +80,13 @@ class LoginRequest extends FormRequest
     /**
      * Get the rate limiting throttle key for the request.
      */
-    public function throttleKey(): string
+    public function throttleKey(string $guard): string
     {
-        return Str::transliterate(Str::lower($this->string('account_type')).'|'.Str::lower($this->string('phone')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($guard).'|'.Str::lower($this->normalizedPhone()).'|'.$this->ip());
+    }
+
+    private function normalizedPhone(): string
+    {
+        return preg_replace('/\D+/', '', $this->string('phone')->toString()) ?? '';
     }
 }

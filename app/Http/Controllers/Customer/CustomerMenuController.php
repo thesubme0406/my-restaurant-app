@@ -47,17 +47,19 @@ class CustomerMenuController extends Controller
     public function index(Request $request): Response
     {
         $customer = $request->user('customer');
-        abort_if($customer === null, 403);
 
-        $bookingTierId = Booking::query()
-            ->where(function ($q) use ($customer): void {
-                $q->where('customer_id', $customer->id)
-                    ->orWhere('phone', $customer->phone);
-            })
-            ->whereIn('status', ['pending', 'confirmed', 'waiting', 'called'])
-            ->whereNull('table_id')
-            ->orderByDesc('id')
-            ->value('tier_id');
+        $bookingTierId = null;
+        if ($customer !== null) {
+            $bookingTierId = Booking::query()
+                ->where(function ($q) use ($customer): void {
+                    $q->where('customer_id', $customer->id)
+                        ->orWhere('phone', $customer->phone);
+                })
+                ->whereIn('status', ['pending', 'confirmed', 'waiting', 'called'])
+                ->whereNull('table_id')
+                ->orderByDesc('id')
+                ->value('tier_id');
+        }
 
         $tiers = BuffetTier::query()
             ->orderBy('price')

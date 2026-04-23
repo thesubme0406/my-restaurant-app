@@ -9,10 +9,20 @@ import { formatAmount } from '@/utils/formatAmount';
 
 const primary = '#194c9f';
 
+function routeNamesFromUrl(url) {
+    const path = typeof url === 'string' ? url.split('?')[0] : '';
+    const isAdmin = path.startsWith('/admin');
+    return {
+        importStore: isAdmin ? 'admin.import.store' : 'staff.import.store',
+    };
+}
+
 export default function ImportPage({ purchaseOrders = [] }) {
     const page = usePage();
     const pageErrors = page.props.errors ?? {};
     const flashSuccess = page.props.flash?.success;
+    const routes = useMemo(() => routeNamesFromUrl(page.url ?? ''), [page.url]);
+    const [localSuccess, setLocalSuccess] = useState('');
 
     const [search, setSearch] = useState('');
     const [selectedPoId, setSelectedPoId] = useState(purchaseOrders[0]?.id ?? null);
@@ -64,9 +74,10 @@ export default function ImportPage({ purchaseOrders = [] }) {
         if (!selectedPo || isImported || lineItems.length === 0 || submitting) {
             return;
         }
+        setLocalSuccess('');
         setSubmitting(true);
         router.post(
-            route('admin.import.store'),
+            route(routes.importStore),
             {
                 po_id: selectedPo.id,
                 items: lineItems.map((item) => ({
@@ -78,6 +89,7 @@ export default function ImportPage({ purchaseOrders = [] }) {
             {
                 preserveScroll: true,
                 onFinish: () => setSubmitting(false),
+                onSuccess: () => setLocalSuccess('ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ'),
             }
         );
     };
@@ -88,7 +100,10 @@ export default function ImportPage({ purchaseOrders = [] }) {
 
             <div className="-mx-4 -mt-2 bg-slate-50 px-4 pb-12 pt-4 md:-mx-8 md:px-8 md:pb-14 md:pt-6">
                 <div className="mx-auto max-w-7xl space-y-6">
-                    <FlashAlert successMessage={flashSuccess} errorMessage={pageErrors.po_id || pageErrors.items} />
+                    <FlashAlert
+                        successMessage={localSuccess || flashSuccess}
+                        errorMessage={pageErrors.po_id || pageErrors.items}
+                    />
 
                     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
                         <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-200/80 sm:p-5">
@@ -163,7 +178,12 @@ export default function ImportPage({ purchaseOrders = [] }) {
                                         <div className="flex items-start justify-between gap-3">
                                             <p className="min-w-0 truncate text-sm font-semibold text-slate-900">{item.ing_name}</p>
                                             {!isImported ? (
-                                                <button type="button" onClick={() => removeItem(item.ing_id)} className="text-slate-400 hover:text-rose-600">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeItem(item.ing_id)}
+                                                    disabled={submitting}
+                                                    className="rounded-md p-1 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
                                                     <Trash2 className="h-4 w-4" />
                                                 </button>
                                             ) : null}
@@ -207,10 +227,10 @@ export default function ImportPage({ purchaseOrders = [] }) {
                                         type="button"
                                         onClick={submitStockIn}
                                         disabled={!selectedPo || lineItems.length === 0 || submitting}
-                                        className="w-full rounded-xl px-4 py-3 text-base font-bold text-white shadow-md transition disabled:cursor-not-allowed disabled:bg-slate-300"
+                                        className="w-full rounded-xl px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-[#153d82] disabled:cursor-not-allowed disabled:bg-slate-300"
                                         style={{ backgroundColor: !selectedPo || lineItems.length === 0 || submitting ? undefined : primary }}
                                     >
-                                        ນຳເຂົ້າວັດຖຸດິບ
+                                        {submitting ? 'ກຳລັງບັນທຶກ...' : 'ນຳເຂົ້າວັດຖຸດິບ'}
                                     </button>
                                 ) : (
                                     <div className="w-full rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-center text-sm font-bold text-emerald-700">

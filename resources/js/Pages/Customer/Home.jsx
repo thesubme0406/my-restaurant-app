@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import CustomerLayout from '@/Layouts/CustomerLayout';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
@@ -78,13 +78,28 @@ function BuffetTierCard({ tier }) {
 }
 
 export default function CustomerHomePage({ buffetTiersWithMenus = [] }) {
+    const { auth } = usePage().props;
+    const isAuthenticated = Boolean(auth?.user);
+    const [loginPromptOpen, setLoginPromptOpen] = useState(false);
     const [queueCount] = useState('023');
+    const [redirectAfterLogin, setRedirectAfterLogin] = useState(route('customer.home'));
 
     const promoBanners = [
         'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=1200&q=80',
         'https://images.unsplash.com/photo-1615361200141-f45040f367be?auto=format&fit=crop&w=1200&q=80',
         'https://images.unsplash.com/photo-1576402187878-974f70c890a5?auto=format&fit=crop&w=1200&q=80',
     ];
+
+    const promptLoginForBooking = () => {
+        if (isAuthenticated) {
+            window.location.href = route('customer.reserve');
+            return;
+        }
+        setRedirectAfterLogin(`${window.location.pathname}${window.location.search}`);
+        setLoginPromptOpen(true);
+    };
+
+    const loginHref = `${route('login')}?redirect_to=${encodeURIComponent(redirectAfterLogin)}`;
 
     return (
         <CustomerLayout>
@@ -103,12 +118,13 @@ export default function CustomerHomePage({ buffetTiersWithMenus = [] }) {
                             <p className="text-base font-bold text-white">
                                 ຄິວລໍຖ້າປັດຈຸບັນ <span className="text-2xl text-[#7db7ff]">{queueCount}</span> ຄິວ
                             </p>
-                            <Link
-                                href={route('customer.reserve')}
+                            <button
+                                type="button"
+                                onClick={promptLoginForBooking}
                                 className="mt-2 inline-flex w-full items-center justify-center rounded-lg bg-[#194c9f] px-4 py-2.5 text-lg font-bold text-white"
                             >
                                 ຈອງຄິວ
-                            </Link>
+                            </button>
                         </div>
                     </div>
                 </section>
@@ -186,12 +202,42 @@ export default function CustomerHomePage({ buffetTiersWithMenus = [] }) {
                             <h3 className="text-5xl font-extrabold leading-none text-[#194c9f]">ແຊບກ່ອນ</h3>
                             <p className="mt-2 text-sm text-slate-600">ສະແກນຈອງຄິວໄວ້ລ່ວງໜ້າໄດ້ທຸກມື້</p>
                         </div>
-                        <Link href={route('customer.reserve')} className="rounded-lg bg-[#194c9f] px-5 py-2.5 text-lg font-bold text-white">
+                        <button
+                            type="button"
+                            onClick={promptLoginForBooking}
+                            className="rounded-lg bg-[#194c9f] px-5 py-2.5 text-lg font-bold text-white"
+                        >
                             ຈອງຄິວ
-                        </Link>
+                        </button>
                     </div>
                 </section>
             </div>
+
+            {loginPromptOpen ? (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/45 px-4">
+                    <div className="w-full max-w-sm rounded-2xl border border-white/25 bg-[#194c9f] p-5 text-white shadow-2xl">
+                        <h3 className="text-lg font-bold">ຕ້ອງການເຂົ້າລະບົບ</h3>
+                        <p className="mt-2 text-sm text-white/90">
+                            ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນເພື່ອທຳການຈອງຄິວ
+                        </p>
+                        <div className="mt-4 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setLoginPromptOpen(false)}
+                                className="rounded-lg border border-white/40 bg-white/10 px-3 py-2 text-sm font-semibold text-white"
+                            >
+                                ຍົກເລີກ
+                            </button>
+                            <Link
+                                href={loginHref}
+                                className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[#194c9f]"
+                            >
+                                ເຂົ້າສູ່ລະບົບ
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </CustomerLayout>
     );
 }

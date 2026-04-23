@@ -12,36 +12,52 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
-    public function create(): Response
+    public function createCustomer(Request $request): Response
     {
+        $redirectTo = $request->query('redirect_to');
+        if (is_string($redirectTo) && str_starts_with($redirectTo, '/')) {
+            $request->session()->put('url.intended', $redirectTo);
+        }
+
         return Inertia::render('Auth/Login', [
             'status' => session('status'),
+            'guard' => 'customer',
         ]);
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
-    public function store(LoginRequest $request): RedirectResponse
+    public function createStaff(): Response
     {
-        $request->authenticate();
+        return Inertia::render('Auth/Login', [
+            'status' => session('status'),
+            'guard' => 'staff',
+        ]);
+    }
 
+    public function storeCustomer(LoginRequest $request): RedirectResponse
+    {
+        return $this->storeByGuard($request, 'customer', route('customer.home', absolute: false));
+    }
+
+    public function storeStaff(LoginRequest $request): RedirectResponse
+    {
+        // ປ່ຽນເສັ້ນທາງໄປໜ້າ Dashboard ສໍາລັບພະນັກງານ
+        $request->authenticate('staff');
         $request->session()->regenerate();
 
-        $guard = $request->string('account_type')->toString();
+        $staff = Auth::guard('staff')->user();
+        $target = $staff?->role === 'manager'
+            ? route('admin.dashboard', absolute: false)
+            : route('staff.dashboard', absolute: false);
 
-        return match ($guard) {
-            'staff' => redirect()->intended(
-                Auth::guard('staff')->user()?->role === 'manager'
-                    ? route('admin.dashboard', absolute: false)
-                    : route('staff.dashboard', absolute: false)
-            ),
-            'customer' => redirect()->intended(route('customer.dashboard', absolute: false)),
-            default => redirect()->intended(route('dashboard', absolute: false)),
-        };
+        return redirect()->intended($target);
+    }
+
+    private function storeByGuard(LoginRequest $request, string $guard, string $redirectTo): RedirectResponse
+    {
+        $request->authenticate($guard);
+        $request->session()->regenerate();
+
+        return redirect()->intended($redirectTo);
     }
 
     /**
@@ -57,6 +73,6 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('login');
     }
 }

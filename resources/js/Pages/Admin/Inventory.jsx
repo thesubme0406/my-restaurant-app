@@ -15,8 +15,19 @@ import { formatAmount } from '@/utils/formatAmount';
 
 const primary = '#194c9f';
 
+function routeNamesFromUrl(url) {
+    const path = typeof url === 'string' ? url.split('?')[0] : '';
+    const isAdmin = path.startsWith('/admin');
+    return {
+        inventoryStore: isAdmin ? 'admin.inventory.store' : 'staff.inventory.store',
+        inventoryUpdate: isAdmin ? 'admin.inventory.update' : 'staff.inventory.update',
+        inventoryDestroy: isAdmin ? 'admin.inventory.destroy' : 'staff.inventory.destroy',
+    };
+}
+
 export default function InventoryPage({ ingredients = [], usageRows = [] }) {
     const page = usePage();
+    const routes = useMemo(() => routeNamesFromUrl(page.url ?? ''), [page.url]);
     const pageErrors = page.props.errors ?? {};
     const flashSuccess = page.props.flash?.success;
     const [search, setSearch] = useState('');
@@ -70,7 +81,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
 
     const submitUsage = (e) => {
         e.preventDefault();
-        form.post(route('admin.inventory.store'), {
+        form.post(route(routes.inventoryStore), {
             preserveScroll: true,
             onSuccess: () => {
                 form.reset('usage_qty', 'usage_detail');
@@ -91,7 +102,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
         }
         setEditBusy(true);
         router.patch(
-            route('admin.inventory.update', editingRow.id),
+            route(routes.inventoryUpdate, editingRow.id),
             {
                 usage_qty: editQty,
                 usage_detail: editNote,
@@ -113,7 +124,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
             return;
         }
         setDeleteBusyId(row.id);
-        router.delete(route('admin.inventory.destroy', row.id), {
+        router.delete(route(routes.inventoryDestroy, row.id), {
             preserveScroll: true,
             onFinish: () => setDeleteBusyId(null),
         });
