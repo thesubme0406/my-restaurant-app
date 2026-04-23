@@ -15,6 +15,11 @@ use Inertia\Response;
 
 class PurchaseController extends Controller
 {
+    private function purchaseRouteName(Request $request): string
+    {
+        return $request->routeIs('staff.*') ? 'staff.purchase' : 'admin.purchase';
+    }
+
     public function index(): Response
     {
         $ingredients = Ingredient::query()
@@ -74,6 +79,6 @@ class PurchaseController extends Controller
             }
         });
 
-        return redirect()->route('admin.purchase')->with('success', 'ບັນທຶກຄຳສັ່ງຊື້ສຳເລັດແລ້ວ');
+        return redirect()->route($this->purchaseRouteName($request))->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
 }

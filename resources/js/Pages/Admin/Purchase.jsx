@@ -8,6 +8,14 @@ import { formatAmount } from '@/utils/formatAmount';
 
 const primary = '#194c9f';
 
+function routeNamesFromUrl(url) {
+    const path = typeof url === 'string' ? url.split('?')[0] : '';
+    const isAdmin = path.startsWith('/admin');
+    return {
+        purchaseStore: isAdmin ? 'admin.purchase.store' : 'staff.purchase.store',
+    };
+}
+
 function formatQty(value) {
     const n = Number(value);
     if (Number.isNaN(n)) {
@@ -18,6 +26,7 @@ function formatQty(value) {
 
 export default function PurchasePage({ ingredients = [], suppliers = [] }) {
     const page = usePage();
+    const routes = useMemo(() => routeNamesFromUrl(page.url ?? ''), [page.url]);
     const [search, setSearch] = useState('');
     const [supplierId, setSupplierId] = useState(suppliers[0]?.id ? String(suppliers[0].id) : '');
     const [cart, setCart] = useState([]);
@@ -64,7 +73,7 @@ export default function PurchasePage({ ingredients = [], suppliers = [] }) {
         }
         setSubmitting(true);
         router.post(
-            route('admin.purchase.store'),
+            route(routes.purchaseStore),
             {
                 sup_id: Number(supplierId),
                 items: cart.map((item) => ({

@@ -194,7 +194,7 @@ function emptyAddQueueForm(buffetTiers) {
 }
 
 export default function AdminDashboard({ stats, zones, queue, skippedQueue, buffetTiers, availableTables }) {
-    const { errors: pageErrors } = usePage().props;
+    const { errors: pageErrors, flash } = usePage().props;
     const [processing, setProcessing] = useState(null);
     const [queueDrawerOpen, setQueueDrawerOpen] = useState(false);
 
@@ -502,6 +502,14 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
             <Head title="Dashboard" />
 
             <div className="font-lao text-slate-900">
+                {flash?.success && (
+                    <div
+                        role="status"
+                        className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800"
+                    >
+                        {flash.success}
+                    </div>
+                )}
                 {(pageErrors?.booking || pageErrors?.table_id) && (
                     <div
                         role="alert"

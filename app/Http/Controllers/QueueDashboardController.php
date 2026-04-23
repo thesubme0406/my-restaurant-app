@@ -283,7 +283,7 @@ class QueueDashboardController extends Controller
             ])->save();
         });
 
-        return back();
+        return back()->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
 
     public function skipQueue(Request $request, Booking $booking): RedirectResponse
@@ -301,7 +301,7 @@ class QueueDashboardController extends Controller
             }
         });
 
-        return back();
+        return back()->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
 
     public function cancelQueue(Request $request, Booking $booking): RedirectResponse

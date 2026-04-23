@@ -17,6 +17,11 @@ use Inertia\Response;
 
 class StockInController extends Controller
 {
+    private function importRouteName(Request $request): string
+    {
+        return $request->routeIs('staff.*') ? 'staff.import' : 'admin.import';
+    }
+
     public function index(): Response
     {
         $orders = PurchaseOrder::query()
@@ -160,6 +165,6 @@ class StockInController extends Controller
             $po->update(['po_status' => 'Received']);
         });
 
-        return redirect()->route('admin.import')->with('success', 'ນຳເຂົ້າວັດຖຸດິບສຳເລັດແລ້ວ');
+        return redirect()->route($this->importRouteName($request))->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
 }
