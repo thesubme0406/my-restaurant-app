@@ -38,16 +38,6 @@ class AuthenticatedSessionController extends Controller
     public function storeCustomer(LoginRequest $request): RedirectResponse
     {
         $request->authenticate('customer');
-
-    public function storeCustomer(LoginRequest $request): RedirectResponse
-    {
-        return $this->storeByGuard($request, 'customer', route('customer.home', absolute: false));
-    }
-
-    public function storeStaff(LoginRequest $request): RedirectResponse
-    {
-        // ປ່ຽນເສັ້ນທາງໄປໜ້າ Dashboard ສໍາລັບພະນັກງານ
-        $request->authenticate('staff');
         $request->session()->regenerate();
 
         $redirectTo = $request->string('redirect_to')->toString();
@@ -61,7 +51,6 @@ class AuthenticatedSessionController extends Controller
     public function storeStaff(LoginRequest $request): RedirectResponse
     {
         $request->authenticate('staff');
-
         $request->session()->regenerate();
 
         // ປ່ຽນເສັ້ນທາງໄປໜ້າ Dashboard ຕາມບົດບາດພະນັກງານ
