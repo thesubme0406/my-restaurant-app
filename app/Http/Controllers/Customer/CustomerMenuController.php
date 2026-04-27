@@ -47,7 +47,6 @@ class CustomerMenuController extends Controller
     public function index(Request $request): Response
     {
         $customer = $request->user('customer');
-
         $bookingTierId = null;
         if ($customer !== null) {
             $bookingTierId = Booking::query()

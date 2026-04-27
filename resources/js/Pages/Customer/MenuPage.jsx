@@ -64,24 +64,24 @@ export default function MenuPage({
         <CustomerLayout>
             <Head title="ເມນູບຸບເຟ່" />
 
-            <div className="space-y-0 pb-8">
+            <div className="mx-auto max-w-7xl space-y-4 pb-8 lg:space-y-6">
                 {/* Hero (navy) */}
-                <section className="relative overflow-hidden bg-[#0f2d5c] px-4 pb-6 pt-5 text-white">
+                <section className="relative overflow-hidden rounded-2xl bg-[#0f2d5c] px-4 pb-6 pt-5 text-white shadow-xl lg:px-8 lg:pb-8 lg:pt-7">
                     <div className="pointer-events-none absolute -right-8 top-0 h-40 w-40 rounded-full bg-white/5" aria-hidden />
                     <div className="pointer-events-none absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-white/5" aria-hidden />
                     <p className="text-center text-[10px] font-semibold uppercase tracking-[0.35em] text-white/50">Customer Menu</p>
-                    <h1 className="mt-2 text-center text-2xl font-extrabold leading-tight tracking-tight">
+                    <h1 className="mt-2 text-center text-2xl font-extrabold leading-tight tracking-tight lg:text-3xl">
                         ເມນູ ບຸບເຟ່ ອາຫານຍີ່ປຸ່ນ
                     </h1>
-                    <p className="mx-auto mt-3 max-w-md text-center text-xs leading-relaxed text-white/85">
+                    <p className="mx-auto mt-3 max-w-4xl text-center text-xs leading-relaxed text-white/85 lg:text-sm">
                         ເລືອກແພັກເກັດລາຄາທີ່ເໝາະກັບທ່ານ ແລະ ສຳຜັດຄວາມອົບອຸ່ນຂອງບຸບເຟ່ຍີ່ປຸ່ນແບບບຸບເຟ່ບໍ່ຈຳກັດພາຍໃນເວລາ 2–3 ຊົ່ວໂມງ.
                     </p>
                 </section>
 
                 {/* Tier tabs — every tier from DB; horizontal scroll for 4+ packages */}
                 {buffetTiers.length > 0 ? (
-                    <div className="-mt-1 bg-white px-0 pb-1 pt-3 shadow-sm">
-                        <div className="relative mx-auto max-w-lg">
+                    <section className="rounded-2xl border border-slate-200 bg-white px-0 pb-2 pt-3 shadow-sm lg:px-4">
+                        <div className="relative w-full">
                             <div
                                 className="pointer-events-none absolute inset-y-1 left-0 z-[1] w-8 bg-gradient-to-r from-white to-transparent"
                                 aria-hidden
@@ -91,7 +91,7 @@ export default function MenuPage({
                                 aria-hidden
                             />
                             <div
-                                className="flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-pb-1 scroll-pl-3 scroll-pr-3 px-3 pb-2 pt-1 [-webkit-overflow-scrolling:touch]"
+                                className="flex snap-x snap-mandatory justify-center gap-2 overflow-x-auto scroll-pb-1 scroll-pl-3 scroll-pr-3 px-3 pb-2 pt-1 [-webkit-overflow-scrolling:touch] lg:px-1"
                                 style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(148,163,184,0.85) transparent' }}
                             >
                                 {buffetTiers.map((tier) => {
@@ -105,7 +105,7 @@ export default function MenuPage({
                                             }}
                                             type="button"
                                             onClick={() => setSelectedTierId(Number(tier.id))}
-                                            className={`shrink-0 snap-center rounded-2xl border-2 px-3 py-2.5 text-left shadow-sm transition sm:min-w-[10.5rem] sm:max-w-[13.5rem] ${
+                                            className={`shrink-0 snap-center rounded-2xl border-2 px-3 py-2.5 text-left shadow-sm transition sm:min-w-[11rem] sm:max-w-[14rem] ${
                                                 active
                                                     ? 'border-[#194c9f] bg-[#194c9f] text-white shadow-md shadow-[#194c9f]/25'
                                                     : 'border-slate-200 bg-white text-slate-700 hover:border-[#194c9f]/40 hover:bg-slate-50'
@@ -127,23 +127,23 @@ export default function MenuPage({
                                 })}
                             </div>
                         </div>
-                        <p className="mx-auto max-w-lg px-4 pb-1 text-center text-[10px] font-medium leading-relaxed text-slate-500">
+                        <p className="w-full px-4 pb-1 text-center text-[10px] font-medium leading-relaxed text-slate-500 lg:text-xs">
                             ມີທັງໝົດ <span className="font-bold text-[#194c9f]">{buffetTiers.length}</span> ແພັກເກັດ · ເລື່ອນແນວນອນເພື່ອເບິ່ງທັງໝົດ
                         </p>
-                    </div>
+                    </section>
                 ) : null}
 
                 {/* Summary card */}
                 {selectedTier ? (
-                    <div className="bg-slate-50 px-3 pb-4 pt-3">
+                    <section className="rounded-2xl bg-slate-50 p-3 lg:p-4">
                         <div
-                            className="mx-auto max-w-md overflow-hidden rounded-2xl px-4 py-4 shadow-md"
+                            className="w-full overflow-hidden rounded-2xl px-4 py-4 shadow-md lg:px-6 lg:py-5"
                             style={{ backgroundColor: goldCard }}
                         >
-                            <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0 flex-1">
-                                    <h2 className="text-lg font-extrabold text-slate-900">{selectedTier.tier_name}</h2>
-                                    <p className="mt-1 text-xs font-medium leading-relaxed text-slate-800/90">
+                            <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+                                <div className="min-w-0">
+                                    <h2 className="text-lg font-extrabold text-slate-900 lg:text-xl">{selectedTier.tier_name}</h2>
+                                    <p className="mt-1 text-xs font-medium leading-relaxed text-slate-800/90 lg:text-sm">
                                         {selectedTier.description || 'ເມນູຄັດສັນສຳລັບແພັກເກັດນີ້ — ກິນໄດ້ບໍ່ຈຳກັດຕາມເວລາທີ່ກຳນົດ.'}
                                     </p>
                                     <div className="mt-3 flex flex-wrap gap-2">
@@ -155,22 +155,25 @@ export default function MenuPage({
                                         </span>
                                     </div>
                                 </div>
-                                <div className="shrink-0 text-right">
-                                    <p className="text-lg font-black leading-none text-slate-900">{formatKipPerPerson(selectedTier.price)}</p>
+                                <div className="shrink-0 rounded-xl bg-white/80 px-3 py-2 text-right shadow-sm lg:min-w-[180px]">
+                                    <p className="text-[11px] font-bold tracking-wide text-slate-500">ລາຄາ</p>
+                                    <p className="mt-1 text-lg font-black leading-none text-slate-900 lg:text-xl">{formatKipPerPerson(selectedTier.price)}</p>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </section>
                 ) : (
-                    <div className="px-4 py-8 text-center text-sm text-slate-600">ຍັງບໍ່ມີຂໍ້ມູນແພັກເກັດບຸບເຟ່.</div>
+                    <div className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-600 shadow-sm">
+                        ຍັງບໍ່ມີຂໍ້ມູນແພັກເກັດບຸບເຟ່.
+                    </div>
                 )}
 
                 {/* Categories + grid */}
                 {selectedTier && selectedTier.categories?.length > 0 ? (
-                    <div className="space-y-8 bg-white px-3 pb-10 pt-6">
+                    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white px-3 pb-6 pt-5 shadow-sm lg:space-y-8 lg:px-5 lg:pb-8 lg:pt-6">
                         {selectedTier.categories.map((cat) => (
-                            <section key={cat.category_id} className="mx-auto max-w-md">
-                                <p className="mb-4 text-center text-[11px] font-bold tracking-wide text-slate-500">
+                            <section key={cat.category_id} className="mx-auto max-w-6xl">
+                                <p className="mb-4 text-center text-[11px] font-bold tracking-wide text-slate-500 lg:text-xs">
                                     ——— {cat.category_name}
                                     {cat.category_name_en ? (
                                         <>
@@ -180,11 +183,11 @@ export default function MenuPage({
                                     ) : null}{' '}
                                     ———
                                 </p>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
                                     {cat.items.map((item) => (
                                         <article
                                             key={item.id}
-                                            className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50/80 shadow-sm"
+                                            className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50/80 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
                                         >
                                             <div className="aspect-square w-full overflow-hidden bg-slate-200">
                                                 {item.image_url ? (
@@ -201,8 +204,8 @@ export default function MenuPage({
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="p-1.5">
-                                                <p className="line-clamp-3 text-center text-[10px] font-bold leading-snug text-slate-900">
+                                            <div className="p-2">
+                                                <p className="line-clamp-3 text-center text-[10px] font-bold leading-snug text-slate-900 sm:text-[11px]">
                                                     {item.name}
                                                     {item.name_en ? (
                                                         <>
@@ -219,10 +222,12 @@ export default function MenuPage({
                         ))}
                     </div>
                 ) : selectedTier ? (
-                    <p className="px-4 py-8 text-center text-sm text-slate-600">ຍັງບໍ່ມີເມນູສຳລັບແພັກເກັດນີ້.</p>
+                    <p className="rounded-xl border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-600 shadow-sm">
+                        ຍັງບໍ່ມີເມນູສຳລັບແພັກເກັດນີ້.
+                    </p>
                 ) : null}
 
-                <div className="px-4 pt-2 text-center">
+                <div className="pt-1 text-center">
                     <Link href={route('customer.home')} className="text-sm font-bold" style={{ color: brandBlue }}>
                         ← ກັບໜ້າຫຼັກ
                     </Link>

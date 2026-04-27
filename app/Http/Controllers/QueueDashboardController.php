@@ -7,6 +7,7 @@ use App\Models\BuffetTier;
 use App\Models\Customer;
 use App\Models\Service;
 use App\Models\Table;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -97,7 +98,10 @@ class QueueDashboardController extends Controller
     /** ຄິວລໍຖ້າໃນແຜງ (ສະຖານະລໍຖ້າ + ຍັງບໍ່ມີໂຕະ) — ໃຊ້ຮ່ວມກັນທັງນັບແລະລາຍການເພື່ອບໍ່ຊ້ຳ/ບໍ່ຂາດ. */
     private function waitingBookingsForDashboard(): Builder
     {
+        $today = Carbon::today()->toDateString();
+
         return Booking::query()
+            ->whereDate('expected_time', $today)
             ->whereIn('status', $this->waitlistStatuses())
             ->whereNull('table_id');
     }
@@ -105,7 +109,10 @@ class QueueDashboardController extends Controller
     /** ຄິວທີ່ຂ້າມແລ້ວໃນແຜງ — ແຖວດຽວຕໍ່ຄົນ, ບໍ່ນັບຫຼາຍຄັ້ງຈາກ skip_count. */
     private function skippedBookingsForDashboard(): Builder
     {
+        $today = Carbon::today()->toDateString();
+
         return Booking::query()
+            ->whereDate('expected_time', $today)
             ->where('status', 'skipped')
             ->whereNull('table_id');
     }
@@ -328,44 +335,92 @@ class QueueDashboardController extends Controller
     {
         $data = $request->validate([
             'booking_id' => ['required', 'integer', 'exists:bookings,id'],
-            'table_id' => ['required', 'integer', 'exists:tables,id'],
+            'table_id' => ['nullable', 'integer', 'exists:tables,id'],
+            'table_ids' => ['nullable', 'array', 'min:1'],
+            'table_ids.*' => ['required', 'integer', 'exists:tables,id'],
         ]);
 
         $booking = Booking::query()->findOrFail($data['booking_id']);
-        $table = Table::query()->findOrFail($data['table_id']);
+        $selectedTableIds = $this->normalizedAssignmentTableIds($data);
+        if ($selectedTableIds === []) {
+            throw ValidationException::withMessages([
+                'table_id' => 'ກະລຸນາເລືອກໂຕະ.',
+            ]);
+        }
+        $tables = Table::query()->whereIn('id', $selectedTableIds)->get()->keyBy('id');
 
         $this->ensureAssignableForTable($booking);
 
-        if ($table->readiness !== 'ready') {
+        $capacityTotal = 0;
+        foreach ($selectedTableIds as $tableId) {
+            $table = $tables->get($tableId);
+            if (! $table instanceof Table) {
+                throw ValidationException::withMessages([
+                    'table_id' => 'ບໍ່ພົບຂໍ້ມູນໂຕະທີ່ເລືອກ.',
+                ]);
+            }
+            if ($table->readiness !== 'ready') {
+                throw ValidationException::withMessages([
+                    'table_id' => 'ມີບາງໂຕະຍັງບໍ່ພ້ອມໃຊ້ງານ.',
+                ]);
+            }
+            // ເຊັກວ່າໂຕະຫວ່າງຕາມບໍລິການ (ບໍ່ໃຊ້ usage_status ຢ່າງດຽວ) ເພື່ອບໍ່ສັບສົນກັບສະຖານະຮ່າງກາຍໂຕະ.
+            if ($table->hasActiveUnpaidService()) {
+                throw ValidationException::withMessages([
+                    'table_id' => 'ມີບາງໂຕະມີລູກຄ້າ/ບໍລິການຢູ່ແລ້ວ.',
+                ]);
+            }
+            $capacityTotal += (int) $table->capacity;
+        }
+
+        if ((int) $booking->guest_count > $capacityTotal) {
             throw ValidationException::withMessages([
-                'table_id' => 'ໂຕະນີ້ບໍ່ພ້ອມໃຊ້ງານ.',
+                'table_id' => 'ຄວາມຈຸໂຕະລວມຍັງບໍ່ພໍສຳລັບຈຳນວນຄົນ.',
             ]);
         }
 
-        // ເຊັກວ່າໂຕະຫວ່າງຕາມບໍລິການ (ບໍ່ໃຊ້ usage_status ຢ່າງດຽວ) ເພື່ອບໍ່ສັບສົນກັບສະຖານະຮ່າງກາຍໂຕະ.
-        if ($table->hasActiveUnpaidService()) {
-            throw ValidationException::withMessages([
-                'table_id' => 'ໂຕະນີ້ມີລູກຄ້າ/ບໍລິການຢູ່ແລ້ວ.',
-            ]);
-        }
-
-        if ($booking->guest_count > $table->capacity) {
-            throw ValidationException::withMessages([
-                'table_id' => 'ໂຕະນີ້ບັນຈຸບໍ່ພໍ.',
-            ]);
-        }
-
-        DB::transaction(function () use ($booking, $table): void {
-            $table->update(['usage_status' => 'occupied']);
+        DB::transaction(function () use ($booking, $tables, $selectedTableIds): void {
+            foreach ($selectedTableIds as $tableId) {
+                $table = $tables->get($tableId);
+                if ($table instanceof Table) {
+                    $table->update(['usage_status' => 'occupied']);
+                }
+            }
+            $primaryTableId = $selectedTableIds[0] ?? null;
             $booking->update([
-                'table_id' => $table->id,
+                'table_id' => $primaryTableId,
                 'status' => 'called',
+                // ຈຸດເວລາທີ່ເລີ່ມເອີ້ນຄິວເຂົ້ານັ່ງໂຕະ ເພື່ອນຳໄປຄຳນວນ waiting time.
+                'called_at' => $booking->called_at ?? now(),
             ]);
             $booking->refresh();
-            Service::ensureOpenSessionForSeatedBooking($booking);
+            Service::ensureOpenSessionForSeatedBooking($booking, $selectedTableIds);
         });
 
         return back();
+    }
+
+    /**
+     * ຮັບ table_id ແບບເກົ່າ ຫຼື table_ids ແບບໃໝ່ ແລ້ວປັບໃຫ້ເປັນ array<int> ບໍ່ຊ້ຳ.
+     *
+     * @param  array<string,mixed>  $data
+     * @return array<int>
+     */
+    private function normalizedAssignmentTableIds(array $data): array
+    {
+        $tableIds = [];
+        if (isset($data['table_ids']) && is_array($data['table_ids'])) {
+            $tableIds = $data['table_ids'];
+        } elseif (! empty($data['table_id'])) {
+            $tableIds = [$data['table_id']];
+        }
+
+        return collect($tableIds)
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function ensureSkippable(Booking $booking): void

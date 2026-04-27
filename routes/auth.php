@@ -8,8 +8,7 @@ Route::middleware('guest:customer')->group(function () {
     Route::get('login', [AuthenticatedSessionController::class, 'createCustomer'])
         ->name('login');
 
-    Route::post('login', [AuthenticatedSessionController::class, 'storeCustomer'])
-        ->name('customer.login.store');
+    Route::post('login', [AuthenticatedSessionController::class, 'storeCustomer']);
 
     Route::get('register', [CustomerRegistrationController::class, 'create'])
         ->name('register');
@@ -24,6 +23,14 @@ Route::prefix('admin')->name('admin.')->middleware('guest:staff')->group(functio
 
     Route::post('login', [AuthenticatedSessionController::class, 'storeStaff'])
         ->name('login.store');
+});
+
+Route::prefix('admin')->middleware('guest:staff')->group(function () {
+    Route::get('login', [AuthenticatedSessionController::class, 'createStaff'])
+        ->name('admin.login');
+
+    Route::post('login', [AuthenticatedSessionController::class, 'storeStaff'])
+        ->name('admin.login.store');
 });
 
 Route::middleware('auth:staff,customer')->group(function () {

@@ -10,6 +10,7 @@ import {
     LayoutDashboard,
     LogOut,
     Menu,
+    Monitor,
     Package,
     ShoppingCart,
     UserRound,
@@ -27,6 +28,7 @@ const managerMenus = [
     { key: 'stock-in', label: 'ນຳເຂົ້າວັດຖຸດິບ', href: '/admin/import', icon: Download },
     { key: 'payments', label: 'ຊຳລະເງິນ', href: '/admin/payments', icon: CreditCard },
     { key: 'reports', label: 'ລາຍງານ', href: '/admin/reports', icon: FileText },
+    { key: 'queue-board', label: 'ບອດຄິວໜ້າຮ້ານ', href: '/admin/queue-board', icon: Monitor },
     { key: 'profile', label: 'ຈັດການໂປຣໄຟລ', href: '/admin/profile', icon: UserRound },
 ];
 
@@ -114,7 +116,7 @@ export default function AdminLayout({ children, title }) {
         <div className="min-h-screen bg-slate-100 font-lao text-slate-900">
             <div className="flex min-h-screen">
                 <aside
-                    className="hidden w-64 shrink-0 flex-col md:flex"
+                    className="no-print hidden w-64 shrink-0 flex-col md:flex"
                     style={{ backgroundColor: brandBlue }}
                 >
                     <div className="flex items-center gap-3 border-b border-white/10 px-5 py-6">
@@ -183,7 +185,7 @@ export default function AdminLayout({ children, title }) {
                 </div>
 
                 <div className="flex min-w-0 flex-1 flex-col">
-                    <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 shadow-sm sm:px-6 md:px-8">
+                    <header className="no-print flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 shadow-sm sm:px-6 md:px-8">
                         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                             <button
                                 type="button"
@@ -228,7 +230,7 @@ export default function AdminLayout({ children, title }) {
                             </Link>
                         </div>
                     </header>
-                    <main className="flex-1 p-4 md:p-8">{children}</main>
+                    <main className="admin-main flex-1 p-4 md:p-8">{children}</main>
                 </div>
             </div>
         </div>

@@ -75,12 +75,11 @@ class BookingController extends Controller
         ]);
 
         $bookingDate = Carbon::parse((string) $validated['booking_date'])->startOfDay();
-        $queueDayString = Carbon::today()->toDateString();
+        $queueDayString = $bookingDate->toDateString();
 
         /*
-         * Global daily queue numbers (Q001, Q002, …) for the *server calendar day* (`queue_day` = today).
-         * All customers share one sequence: max suffix today + 1, regardless of who booked.
-         * `expected_time` still follows the customer's chosen booking_date.
+         * Global daily queue numbers (Q001, Q002, …) per dine date (`queue_day` = selected booking_date).
+         * All customers share one sequence for that date only.
          * Unique index on (queue_day, queue_no) + lockForUpdate + retry prevents duplicates under concurrency.
          */
         $booking = null;
@@ -135,7 +134,8 @@ class BookingController extends Controller
                         'queue_day' => $queueDayString,
                         'guest_count' => (int) $validated['guest_count'],
                         'expected_time' => $bookingDate,
-                        'queued_at' => $bookingDate,
+                        // ເວລາເຂົ້າຄິວຈິງ (ຈຸດບັນທຶກໃນລະບົບ) ໃຊ້ສຳລັບຄຳນວນ waiting time.
+                        'queued_at' => now(),
                         'status' => 'pending',
                         'skip_count' => 0,
                     ]);

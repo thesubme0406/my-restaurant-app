@@ -1,7 +1,7 @@
 // ລາຍງານ: ໜ້າກາງ (orchestrator) ທີ່ຮວບຮວມ filter + table + summary
 import AdminLayout from '@/Layouts/AdminLayout';
 import GenericReportTable from '@/Components/Reports/GenericReportTable';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { formatAmount } from '@/utils/formatAmount';
@@ -14,11 +14,13 @@ import { getMenuColumns } from './Reports/MenuReport';
 import { getIngredientUsageColumns } from './Reports/IngredientUsageReport';
 import { getIngredientPurchaseColumns } from './Reports/IngredientPurchaseReport';
 import { getIngredientImportColumns } from './Reports/IngredientImportReport';
+import { getServiceColumns } from './Reports/ServiceReport';
 
 const reportOptions = [
     { value: 'income', label: 'ລາຍງານລາຍຮັບ' },
     { value: 'queue_statistics', label: 'ລາຍງານສະຖິຕິຄິວ' },
     { value: 'queue_booking', label: 'ລາຍງານການຈອງຄິວ' },
+    { value: 'service', label: 'ລາຍງານການບໍລິການ' },
     { value: 'menu', label: 'ລາຍງານຂໍ້ມູນເມນູ' },
     { value: 'ingredient_usage', label: 'ລາຍງານການໃຊ້ວັດຖຸດິບ' },
     { value: 'ingredient_purchase', label: 'ລາຍງານການສັ່ງຊື້ວັດຖຸດິບ' },
@@ -43,6 +45,12 @@ const queueStatusFilterOptions = [
     { value: 'skipped', label: 'ສະເພາະຄິວຂ້າມ' },
     { value: 'cancelled', label: 'ສະເພາະຄິວຍົກເລີກ' },
     { value: 'other', label: 'ສະເພາະສະຖານະອື່ນ' },
+];
+
+const servicePaymentStatusOptions = [
+    { value: 'all', label: 'ທຸກສະຖານະຊຳລະ' },
+    { value: 'paid', label: 'ຊຳລະແລ້ວ' },
+    { value: 'unpaid', label: 'ຍັງບໍ່ຊຳລະ' },
 ];
 
 const purchaseStatusOptions = [
@@ -73,6 +81,10 @@ function moneyKip(v) {
     return `${formatAmount(v ?? 0)} KIP`;
 }
 
+function reportTitleByType(type) {
+    return reportOptions.find((opt) => opt.value === type)?.label ?? 'ລາຍງານ';
+}
+
 export default function ReportsPage({
     initialType,
     initialFrom,
@@ -91,6 +103,17 @@ export default function ReportsPage({
     initialRows = [],
     initialSummary = {},
 }) {
+    const { auth } = usePage().props;
+    const printedBy = auth?.user?.name ?? '—';
+    const printedAt = new Date().toLocaleString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+    });
+
     // ສະຖານະ filter ກາງ
     const [reportType, setReportType] = useState(initialType ?? 'income');
     const [from, setFrom] = useState(initialFrom ?? '');
@@ -113,6 +136,7 @@ export default function ReportsPage({
         if (reportType === 'income') return getIncomeColumns();
         if (reportType === 'queue_statistics') return getQueueStatisticsColumns(queueStatus);
         if (reportType === 'queue_booking') return getQueueBookingColumns();
+        if (reportType === 'service') return getServiceColumns();
         if (reportType === 'menu') return getMenuColumns();
         if (reportType === 'ingredient_usage') return getIngredientUsageColumns();
         if (reportType === 'ingredient_purchase') return getIngredientPurchaseColumns();
@@ -153,6 +177,10 @@ export default function ReportsPage({
             }
             if (nextType === 'queue_statistics') {
                 paramsObj.queue_status = nextQueueStatus;
+            }
+            if (nextType === 'service') {
+                paramsObj.queue_status = nextQueueStatus;
+                paramsObj.tier_id = nextTierId;
             }
             if (nextType === 'ingredient_purchase') {
                 paramsObj.purchase_status = nextPurchaseStatus;
@@ -235,79 +263,65 @@ export default function ReportsPage({
         fetchReport(reportType, nextFrom, nextTo, 'all', 'all', 'all', 'all', 'all', '', 'all', 'all');
     };
 
-    const exportCsv = () => {
-        if (!rows.length) return;
-        const headers = columns.map((c) => c.header);
-        const csvRows = rows.map((row, idx) =>
-            columns.map((col) => {
-                const val = typeof col.cell === 'function' ? col.cell(row, idx) : row[col.key];
-                return `"${String(val ?? '').replaceAll('"', '""')}"`;
-            })
-        );
-        const csv = [headers.join(','), ...csvRows.map((r) => r.join(','))].join('\n');
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `report-${reportType}.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
     return (
         <AdminLayout title="ລາຍງານ">
             <Head title="ລາຍງານ" />
             <div className="-mx-4 -mt-2 bg-slate-50 px-4 pb-12 pt-4 font-sans md:-mx-8 md:px-8 md:pb-14 md:pt-6">
                 <div className="mx-auto max-w-7xl space-y-4">
-                    <ReportFilterBar
-                        reportType={reportType}
-                        loading={loading}
-                        filters={{
-                            from,
-                            to,
-                            statusFilter,
-                            categoryId,
-                            paymentMethod,
-                            tierId,
-                            queueStatus,
-                            purchaseStatus,
-                            supplierId,
-                        }}
-                        menuCategories={menuCategories}
-                        buffetTiers={buffetTiers}
-                        supplierOptions={supplierOptions}
-                        options={{
-                            reportOptions,
-                            menuStatusOptions,
-                            paymentMethodOptions,
-                            queueStatusFilterOptions,
-                            purchaseStatusOptions,
-                        }}
-                        onChangeReportType={onChangeReportType}
-                        onPatch={onPatch}
-                        onSearch={() => fetchReport()}
-                        onReset={onReset}
-                        filterButtonClass={filterButtonClass}
-                    />
+                    <div className="no-print">
+                        <ReportFilterBar
+                            reportType={reportType}
+                            loading={loading}
+                            filters={{
+                                from,
+                                to,
+                                statusFilter,
+                                categoryId,
+                                paymentMethod,
+                                tierId,
+                                queueStatus,
+                                purchaseStatus,
+                                supplierId,
+                            }}
+                            menuCategories={menuCategories}
+                            buffetTiers={buffetTiers}
+                            supplierOptions={supplierOptions}
+                            options={{
+                                reportOptions,
+                                menuStatusOptions,
+                                paymentMethodOptions,
+                                queueStatusFilterOptions,
+                                servicePaymentStatusOptions,
+                                purchaseStatusOptions,
+                            }}
+                            onChangeReportType={onChangeReportType}
+                            onPatch={onPatch}
+                            onSearch={() => fetchReport()}
+                            onReset={onReset}
+                            filterButtonClass={filterButtonClass}
+                        />
+                    </div>
 
-                    <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-200/80">
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                            <div className="w-full min-w-0">
-                                <ReportSummarySection reportType={reportType} summary={summary} moneyKip={moneyKip} />
+                    <section className={`report-print-area report-${reportType} rounded-2xl border border-slate-100 bg-white p-4 shadow-md shadow-slate-200/80`}>
+                        <div className="print-only mb-3 hidden border-b border-slate-300 px-1 pb-3 print:block">
+                            <h1 className="text-lg font-black text-[#194c9f]">OSHINEI RESTAURANT</h1>
+                            <p className="text-xs text-slate-700">ທີ່ຢູ່: ບ້ານ ສະພານທອງ, ເມືອງ ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ</p>
+                            <p className="text-xs text-slate-700">ໂທ: 021 454 565, 020 59 494 465</p>
+                            <h2 className="mt-2 text-base font-extrabold text-slate-900">{reportTitleByType(reportType)}</h2>
+                            <div className="mt-1 grid grid-cols-1 gap-0.5 text-xs text-slate-700">
+                                <p>ຊ່ວງວັນທີ: {from || '-'} ຫາ {to || '-'}</p>
+                                <p>ວັນທີພິມລາຍງານ: {printedAt}</p>
+                                <p>ຜູ້ພິມລາຍງານ: {printedBy}</p>
                             </div>
-                            <div className="flex gap-2">
-                                <button
-                                    type="button"
-                                    onClick={exportCsv}
-                                    className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 font-sans"
-                                >
-                                    Export Excel
-                                </button>
+                        </div>
+                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                            <div className="no-print w-full min-w-0">
+                                <ReportSummarySection reportType={reportType} summary={summary} moneyKip={moneyKip} />
                             </div>
                         </div>
 
                         <GenericReportTable columns={columns} rows={rows} />
-                        <div className="mt-4 flex justify-end">
+                        <div className="no-print mt-4 flex justify-end">
                             <button
                                 type="button"
                                 onClick={() => window.print()}

@@ -26,6 +26,9 @@ class Booking extends Model
         'guest_count',
         'expected_time',
         'queued_at',
+        'called_at',
+        'dining_finished_at',
+        'paid_at',
         'status',
         'skip_count',
     ];
@@ -35,6 +38,9 @@ class Booking extends Model
         return [
             'expected_time' => 'datetime',
             'queued_at' => 'datetime',
+            'called_at' => 'datetime',
+            'dining_finished_at' => 'datetime',
+            'paid_at' => 'datetime',
             'queue_day' => 'date',
         ];
     }

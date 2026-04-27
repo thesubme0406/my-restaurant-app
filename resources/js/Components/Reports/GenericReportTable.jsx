@@ -11,7 +11,7 @@ export default function GenericReportTable({ columns = [], rows = [] }) {
                 <thead className="bg-[#194c9f] text-white">
                     <tr>
                         {columns.map((col) => (
-                            <th key={col.key} className="px-3 py-2 text-left font-semibold">
+                            <th key={col.key} className="px-3 py-2 text-left text-xs font-semibold md:text-sm">
                                 {col.header}
                             </th>
                         ))}
@@ -19,11 +19,11 @@ export default function GenericReportTable({ columns = [], rows = [] }) {
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
                     {rows.map((row, idx) => (
-                        <tr key={row.id ?? idx} className="h-14">
+                        <tr key={row.id ?? idx}>
                             {columns.map((col) => {
                                 const val = typeof col.cell === 'function' ? col.cell(row, idx) : row[col.key];
                                 return (
-                                    <td key={col.key} className="px-3 py-2 align-middle text-slate-700">
+                                    <td key={col.key} className="px-3 py-1.5 align-middle text-xs leading-5 text-slate-700 md:py-2 md:text-sm">
                                         {defaultCell(val)}
                                     </td>
                                 );

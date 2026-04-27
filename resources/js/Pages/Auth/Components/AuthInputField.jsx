@@ -1,54 +1,49 @@
-import InputError from '@/Components/InputError';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function AuthInputField({
     id,
-    name,
     label,
+    icon: Icon,
     type = 'text',
     value,
     onChange,
-    placeholder,
     autoComplete,
-    icon: Icon,
-    error,
-    isFocused = false,
     showToggle = false,
     isVisible = false,
     onToggleVisibility,
+    isFocused = false,
 }) {
-    const currentType = showToggle ? (isVisible ? 'text' : 'password') : type;
-
     return (
         <div>
-            {label ? <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-white/95">{label}</label> : null}
+            <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-white">
+                {label}
+            </label>
             <div className="relative">
-                <span className="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-4 text-[#194c9f]">
-                    <Icon className="h-5 w-5" strokeWidth={2.2} />
-                </span>
+                {Icon ? (
+                    <span className="pointer-events-none absolute left-4 top-1/2 z-10 -translate-y-1/2 text-[#194c9f]">
+                        <Icon className="h-5 w-5" strokeWidth={2.2} />
+                    </span>
+                ) : null}
                 <input
                     id={id}
-                    name={name}
-                    type={currentType}
+                    type={type}
                     value={value}
                     onChange={onChange}
-                    placeholder={placeholder}
                     autoComplete={autoComplete}
                     autoFocus={isFocused}
-                    className="h-12 w-full rounded-xl border border-white/40 bg-white/95 pl-12 pr-12 text-sm font-medium text-slate-900 outline-none backdrop-blur-sm transition placeholder:text-slate-500 focus:border-white focus:ring-2 focus:ring-white/30"
+                    className="h-12 w-full rounded-xl border border-white/40 bg-white/95 pl-12 pr-12 text-sm text-slate-900 outline-none transition focus:border-white focus:ring-2 focus:ring-white/60"
                 />
                 {showToggle ? (
                     <button
                         type="button"
                         onClick={onToggleVisibility}
-                        className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#194c9f] transition hover:text-[#153d82]"
-                        aria-label={isVisible ? 'ປິດການສະແດງລະຫັດຜ່ານ' : 'ສະແດງລະຫັດຜ່ານ'}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-[#194c9f] hover:bg-slate-100"
+                        aria-label="toggle password visibility"
                     >
                         {isVisible ? <EyeOff className="h-5 w-5" strokeWidth={2.2} /> : <Eye className="h-5 w-5" strokeWidth={2.2} />}
                     </button>
                 ) : null}
             </div>
-            <InputError message={error} className="mt-2" />
         </div>
     );
 }

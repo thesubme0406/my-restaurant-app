@@ -67,6 +67,17 @@ export default function ReportSummarySection({ reportType, summary, moneyKip }) 
         );
     }
 
+    if (reportType === 'service') {
+        return (
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <ReportStatCard title="Service ທັງໝົດ" value={summary.total_services ?? 0} />
+                <ReportStatCard title="ຊຳລະແລ້ວ" value={summary.paid_count ?? 0} />
+                <ReportStatCard title="ຍັງບໍ່ຊຳລະ" value={summary.unpaid_count ?? 0} />
+                <ReportStatCard title="ເວລານັ່ງສະເລ່ຍ" value={`${summary.avg_duration_min ?? 0} ນາທີ`} />
+            </div>
+        );
+    }
+
     return (
         <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
             <p className="text-sm font-semibold text-[#194c9f] font-sans">ສະຫຼຸບລາຍຮັບຊ່ວງທີ່ເລືອກ</p>

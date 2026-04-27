@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\NewsController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\Admin\PurchaseController;
+use App\Http\Controllers\Admin\QueueBoardController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\StockInController;
@@ -69,8 +70,22 @@ Route::middleware(['auth:staff'])->prefix('queue-dashboard')->name('queue-dashbo
 
 Route::prefix('customer')->name('customer.')->group(function () {
     Route::get('/home', CustomerHomeController::class)->name('home');
-
     Route::get('/menu', [CustomerMenuController::class, 'index'])->name('menu');
+
+    Route::middleware(['auth:customer'])->group(function () {
+        Route::get('/reserve', [ReserveController::class, 'index'])->name('reserve');
+        Route::get('/reserve/stats', [ReserveController::class, 'stats'])->name('reserve.stats');
+        Route::post('/reserve', [BookingController::class, 'store'])->name('reserve.store');
+        Route::patch('/reserve/{booking}/cancel', [BookingController::class, 'cancel'])->name('reserve.cancel');
+        Route::get('/reserve/new', function () {
+            return redirect()->route('customer.reserve');
+        })->name('reserve.new');
+
+        Route::get('/profile', [CustomerProfileController::class, 'edit'])->name('profile');
+        Route::patch('/profile', [CustomerProfileController::class, 'update'])->name('profile.update');
+
+        Route::get('/dashboard', CustomerHomeController::class)->name('dashboard');
+    });
 
     Route::get('/news', [CustomerNewsController::class, 'index'])->name('news');
     Route::get('/news/api/published', [CustomerNewsController::class, 'publishedApi'])->name('news.published-api');
@@ -78,8 +93,6 @@ Route::prefix('customer')->name('customer.')->group(function () {
     Route::get('/contact', CustomerContactController::class)->name('contact');
 
     Route::get('/about', CustomerAboutController::class)->name('about');
-
-    Route::get('/dashboard', CustomerHomeController::class)->name('dashboard');
 });
 
 Route::middleware(['auth:customer'])->prefix('customer')->name('customer.')->group(function () {
@@ -98,6 +111,7 @@ Route::middleware(['auth:customer'])->prefix('customer')->name('customer.')->gro
 Route::get('/home', CustomerHomeController::class)->name('home');
 Route::middleware(['auth:customer'])->get('/reserve', fn () => redirect()->route('customer.reserve'));
 Route::get('/menu', fn () => redirect()->route('customer.menu'));
+Route::get('/home', fn () => redirect()->route('customer.home'));
 Route::get('/news', fn () => redirect()->route('customer.news'));
 Route::get('/contact', fn () => redirect()->route('customer.contact'));
 Route::get('/about', fn () => redirect()->route('customer.about'));
@@ -188,6 +202,8 @@ Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')-
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports');
     Route::get('/reports/data', [ReportController::class, 'data'])->name('reports.data');
+    Route::get('/queue-board', [QueueBoardController::class, 'index'])->name('queue-board');
+    Route::get('/queue-board/data', [QueueBoardController::class, 'data'])->name('queue-board.data');
 });
 
 require __DIR__.'/auth.php';

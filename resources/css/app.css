@@ -35,3 +35,134 @@ body,
 * {
     font-family: 'Noto Sans Lao', sans-serif !important;
 }
+
+@media print {
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .print-only {
+        display: block !important;
+    }
+
+    .report-print-area {
+        border: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+        break-inside: avoid;
+    }
+
+    .report-print-area,
+    .report-print-area * {
+        font-family: 'Noto Sans Lao', sans-serif !important;
+    }
+
+    .admin-main {
+        padding: 0 !important;
+    }
+
+    .report-print-area table {
+        width: 100% !important;
+        table-layout: fixed;
+        border-collapse: collapse;
+        font-size: 10px !important;
+    }
+
+    .report-print-area thead th {
+        background: #194c9f !important;
+        color: #fff !important;
+        border: 1px solid #d1d9e6 !important;
+        padding: 4px 6px !important;
+        white-space: normal !important;
+        word-break: break-word;
+        line-height: 1.25;
+    }
+
+    .report-print-area tbody td {
+        border: 1px solid #e2e8f0 !important;
+        padding: 3px 6px !important;
+        color: #0f172a !important;
+        white-space: normal !important;
+        word-break: break-word;
+        line-height: 1.25;
+        vertical-align: top;
+    }
+
+    .report-print-area tbody tr {
+        height: auto !important;
+    }
+
+    .report-income table th:nth-child(1),
+    .report-income table td:nth-child(1) { width: 4%; }
+    .report-income table th:nth-child(2),
+    .report-income table td:nth-child(2) { width: 12%; }
+    .report-income table th:nth-child(3),
+    .report-income table td:nth-child(3) { width: 8%; }
+    .report-income table th:nth-child(4),
+    .report-income table td:nth-child(4) { width: 8%; }
+    .report-income table th:nth-child(5),
+    .report-income table td:nth-child(5) { width: 14%; }
+    .report-income table th:nth-child(6),
+    .report-income table td:nth-child(6) { width: 9%; }
+    .report-income table th:nth-child(7),
+    .report-income table td:nth-child(7) { width: 10%; }
+    .report-income table th:nth-child(8),
+    .report-income table td:nth-child(8) { width: 17%; }
+    .report-income table th:nth-child(9),
+    .report-income table td:nth-child(9) { width: 18%; }
+
+    .report-service table th:nth-child(1),
+    .report-service table td:nth-child(1) { width: 4%; }
+    .report-service table th:nth-child(2),
+    .report-service table td:nth-child(2) { width: 8%; }
+    .report-service table th:nth-child(3),
+    .report-service table td:nth-child(3) { width: 8%; }
+    .report-service table th:nth-child(4),
+    .report-service table td:nth-child(4) { width: 10%; }
+    .report-service table th:nth-child(5),
+    .report-service table td:nth-child(5) { width: 15%; }
+    .report-service table th:nth-child(6),
+    .report-service table td:nth-child(6) { width: 12%; }
+    .report-service table th:nth-child(7),
+    .report-service table td:nth-child(7) { width: 8%; }
+    .report-service table th:nth-child(8),
+    .report-service table td:nth-child(8) { width: 11%; }
+    .report-service table th:nth-child(9),
+    .report-service table td:nth-child(9) { width: 11%; }
+    .report-service table th:nth-child(10),
+    .report-service table td:nth-child(10) { width: 13%; }
+
+    /* Service report: ລົດຄວາມສູງແຖວໃນ PDF ໃຫ້ອ່ານງ່າຍແບບລາຍງານທົ່ວໄປ */
+    .report-service table th,
+    .report-service table td {
+        font-size: 9px !important;
+        line-height: 1.15 !important;
+        padding-top: 2px !important;
+        padding-bottom: 2px !important;
+        white-space: nowrap !important;
+    }
+
+    .report-queue_booking table th:nth-child(1),
+    .report-queue_booking table td:nth-child(1) { width: 5%; }
+    .report-queue_booking table th:nth-child(2),
+    .report-queue_booking table td:nth-child(2) { width: 9%; }
+    .report-queue_booking table th:nth-child(3),
+    .report-queue_booking table td:nth-child(3) { width: 13%; }
+    .report-queue_booking table th:nth-child(4),
+    .report-queue_booking table td:nth-child(4) { width: 18%; }
+    .report-queue_booking table th:nth-child(5),
+    .report-queue_booking table td:nth-child(5) { width: 8%; }
+    .report-queue_booking table th:nth-child(6),
+    .report-queue_booking table td:nth-child(6) { width: 16%; }
+    .report-queue_booking table th:nth-child(7),
+    .report-queue_booking table td:nth-child(7) { width: 15%; }
+    .report-queue_booking table th:nth-child(8),
+    .report-queue_booking table td:nth-child(8) { width: 16%; }
+}

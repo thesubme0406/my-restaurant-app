@@ -25,6 +25,7 @@ export default function ReportFilterBar({
     const isMenuReport = reportType === 'menu';
     const isIncomeReport = reportType === 'income';
     const isQueueStatsReport = reportType === 'queue_statistics';
+    const isServiceReport = reportType === 'service';
     const isPurchaseReport = reportType === 'ingredient_purchase';
     const isImportReport = reportType === 'ingredient_import';
 
@@ -116,6 +117,27 @@ export default function ReportFilterBar({
                                     <TierSelectField
                                         boxClass="w-40 shrink-0"
                                         label="Buffet Tier (ລາຍຮັບ)"
+                                        tiers={buffetTiers}
+                                        value={filters.tierId}
+                                        onChange={(e) => onPatch({ tierId: e.target.value })}
+                                    />
+                                </>
+                            )}
+
+                            {isServiceReport && (
+                                <>
+                                    <RField className="w-40 shrink-0" label="ສະຖານະຊຳລະ">
+                                        <RSelect value={filters.queueStatus} onChange={(e) => onPatch({ queueStatus: e.target.value })}>
+                                            {options.servicePaymentStatusOptions.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </RSelect>
+                                    </RField>
+                                    <TierSelectField
+                                        boxClass="w-40 shrink-0"
+                                        label="Buffet Tier"
                                         tiers={buffetTiers}
                                         value={filters.tierId}
                                         onChange={(e) => onPatch({ tierId: e.target.value })}

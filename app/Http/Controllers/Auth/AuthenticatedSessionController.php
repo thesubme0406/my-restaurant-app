@@ -21,7 +21,8 @@ class AuthenticatedSessionController extends Controller
 
         return Inertia::render('Auth/Login', [
             'status' => session('status'),
-            'guard' => 'customer',
+            'isStaffLogin' => false,
+            'redirectTo' => $request->string('redirect_to')->toString(),
         ]);
     }
 
@@ -29,9 +30,14 @@ class AuthenticatedSessionController extends Controller
     {
         return Inertia::render('Auth/Login', [
             'status' => session('status'),
-            'guard' => 'staff',
+            'isStaffLogin' => true,
+            'redirectTo' => '',
         ]);
     }
+
+    public function storeCustomer(LoginRequest $request): RedirectResponse
+    {
+        $request->authenticate('customer');
 
     public function storeCustomer(LoginRequest $request): RedirectResponse
     {
@@ -44,20 +50,26 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate('staff');
         $request->session()->regenerate();
 
-        $staff = Auth::guard('staff')->user();
-        $target = $staff?->role === 'manager'
-            ? route('admin.dashboard', absolute: false)
-            : route('staff.dashboard', absolute: false);
+        $redirectTo = $request->string('redirect_to')->toString();
+        if ($redirectTo !== '' && str_starts_with($redirectTo, '/')) {
+            return redirect()->to($redirectTo);
+        }
 
-        return redirect()->intended($target);
+        return redirect()->intended(route('customer.home', absolute: false));
     }
 
-    private function storeByGuard(LoginRequest $request, string $guard, string $redirectTo): RedirectResponse
+    public function storeStaff(LoginRequest $request): RedirectResponse
     {
-        $request->authenticate($guard);
+        $request->authenticate('staff');
+
         $request->session()->regenerate();
 
-        return redirect()->intended($redirectTo);
+        // ປ່ຽນເສັ້ນທາງໄປໜ້າ Dashboard ຕາມບົດບາດພະນັກງານ
+        return redirect()->intended(
+            Auth::guard('staff')->user()?->role === 'manager'
+                ? route('admin.dashboard', absolute: false)
+                : route('staff.dashboard', absolute: false)
+        );
     }
 
     /**

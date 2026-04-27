@@ -43,8 +43,13 @@ class LoginRequest extends FormRequest
         $this->ensureIsNotRateLimited($guard);
         $phone = $this->normalizedPhone();
 
-        if (! Auth::guard($guard)->attempt(['phone' => $phone, 'password' => $this->string('password')->toString()], $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey($guard));
+        $credentials = [
+            'phone' => $this->normalizedPhone(),
+            'password' => $this->input('password'),
+        ];
+
+        if (! Auth::guard($guard)->attempt($credentials, $this->boolean('remember'))) {
+            RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
                 'phone' => trans('auth.failed'),
@@ -82,11 +87,11 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(string $guard): string
     {
-        return Str::transliterate(Str::lower($guard).'|'.Str::lower($this->normalizedPhone()).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->normalizedPhone()).'|'.$this->ip());
     }
 
-    private function normalizedPhone(): string
+    public function normalizedPhone(): string
     {
-        return preg_replace('/\D+/', '', $this->string('phone')->toString()) ?? '';
+        return preg_replace('/\D+/', '', (string) $this->input('phone')) ?? '';
     }
 }

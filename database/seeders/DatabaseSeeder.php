@@ -35,9 +35,7 @@ class DatabaseSeeder extends Seeder
             TableSeeder::class,
             IngredientSeeder::class,
             CustomerSeeder::class,
-            BookingSeeder::class,
-            ServiceSeeder::class,
-            PaymentSeeder::class,
+            QueueLifecycleSeeder::class,
             NewsSeeder::class,
         ]);
     }

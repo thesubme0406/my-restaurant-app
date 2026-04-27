@@ -1,51 +1,39 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
+import InputError from '@/Components/InputError';
+import AuthInputField from '@/Pages/Auth/Components/AuthInputField';
 import LoginCard from '@/Pages/Auth/Components/LoginCard';
-import { Head, useForm } from '@inertiajs/react';
-import { Eye, EyeOff, Lock, Phone } from 'lucide-react';
+import PrimaryButton from '@/Pages/Auth/Components/PrimaryButton';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { Lock, Phone } from 'lucide-react';
 import { useState } from 'react';
 
-const LOGO_SRC = '/images/oshinei-logo.png?v=20260423';
-
-export default function Login({ status, guard = 'customer' }) {
-    const isStaffLogin = guard === 'staff';
-    const [staffLogoError, setStaffLogoError] = useState(false);
-    const [showStaffPassword, setShowStaffPassword] = useState(false);
-
+export default function Login({ status, isStaffLogin = false, redirectTo = '' }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         phone: '',
         password: '',
         remember: false,
+        redirect_to: redirectTo ?? '',
     });
+    const [passwordVisible, setPasswordVisible] = useState(false);
+    const [notice, setNotice] = useState('');
 
     const submit = (e) => {
         e.preventDefault();
 
-        post(isStaffLogin ? route('admin.login.store') : route('customer.login.store'), {
+        post(isStaffLogin ? route('admin.login.store') : route('login'), {
             onFinish: () => reset('password'),
         });
     };
 
-    return (
-        <div
-            className={`min-h-screen px-4 py-8 sm:py-10 ${isStaffLogin ? 'bg-slate-100' : ''}`}
-            style={
-                isStaffLogin
-                    ? {
-                          backgroundColor: '#194c9f',
-                          backgroundImage:
-                              'linear-gradient(160deg, rgba(255,255,255,0.08), transparent 45%), repeating-radial-gradient(circle at 60% 120%, rgba(255,255,255,0.06) 0 2px, transparent 2px 11px)',
-                      }
-                    : {
-                          backgroundColor: '#194c9f',
-                          backgroundImage:
-                              'radial-gradient(circle at 15% 20%, rgba(255,255,255,0.14), transparent 36%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.08), transparent 32%), repeating-radial-gradient(circle at 50% 120%, rgba(255,255,255,0.07) 0 2px, transparent 2px 12px)',
-                      }
-            }
-        >
-            <Head title={isStaffLogin ? 'Staff Login' : 'Customer Login'} />
+    const pageTitle = isStaffLogin ? 'Staff Login' : 'Customer Login';
+    const backgroundClass = isStaffLogin
+        ? 'min-h-screen bg-gradient-to-br from-[#194c9f] via-[#1d4fa4] to-[#123774] p-4'
+        : 'min-h-screen bg-gradient-to-br from-[#194c9f] via-[#225ab9] to-[#143a78] p-4';
 
-            {/* ປ້ອງກັນການ stretch ໃນ Desktop */}
-            <div className="mx-auto flex min-h-[84vh] max-w-5xl items-center justify-center">
+    return (
+        <div className={backgroundClass}>
+            <Head title={pageTitle} />
+
+            <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center">
                 {!isStaffLogin ? (
                     <LoginCard
                         data={data}
@@ -54,74 +42,68 @@ export default function Login({ status, guard = 'customer' }) {
                         processing={processing}
                         errors={errors}
                         status={status}
+                        notice={notice}
+                        onNotice={() => setNotice('ຂໍອະໄພ, ຕອນນີ້ຍັງບໍ່ເປີດໃຊ້ຟີເຈີລືມລະຫັດຜ່ານ.')}
                     />
                 ) : (
-                    <div className="w-[90%] max-w-md rounded-2xl border border-white/20 bg-white/10 p-6 shadow-2xl shadow-black/25 backdrop-blur-md sm:p-8">
-                        <div className="mb-5 flex justify-center">
-                            <div className="flex h-24 w-24 items-center justify-center rounded-full border border-white/80 bg-white p-2 shadow-[0_0_25px_rgba(255,255,255,0.35)]">
-                                {!staffLogoError ? (
-                                    <img
-                                        src={LOGO_SRC}
-                                        alt="Oshinei Logo"
-                                        onError={() => setStaffLogoError(true)}
-                                        className="h-full w-full rounded-full object-cover"
-                                    />
-                                ) : (
-                                    <ApplicationLogo className="h-full w-full fill-[#194c9f]" />
-                                )}
+                    <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/10 p-6 shadow-2xl backdrop-blur-md">
+                        <div className="mb-5 text-center">
+                            <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-lg">
+                                <img src="/images/oshinei-logo.png?v=4" alt="Oshinei" className="h-14 w-14 object-contain" />
                             </div>
-                        </div>
-                        <div className="mb-6 text-center">
                             <h1 className="text-2xl font-bold text-white">ລະບົບພະນັກງານ</h1>
-                            <p className="mt-1 text-sm text-white/80">ເຂົ້າໃຊ້ງານດ້ວຍບັນຊີພະນັກງານ</p>
+                            <p className="mt-1 text-sm text-white/85">ເຂົ້າສູ່ Dashboard ຂອງຮ້ານ Oshinei</p>
                         </div>
+
+                        {status ? <div className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">{status}</div> : null}
+
                         <form onSubmit={submit} className="space-y-4">
-                            <div className="relative">
-                                <span className="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-4 text-[#194c9f]">
-                                    <Phone className="h-5 w-5" strokeWidth={2.2} />
-                                </span>
+                            <AuthInputField
+                                id="phone"
+                                label="ເບີໂທລະສັບ"
+                                type="tel"
+                                value={data.phone}
+                                onChange={(e) => setData('phone', e.target.value)}
+                                icon={Phone}
+                                autoComplete="tel"
+                                isFocused
+                            />
+                            <InputError message={errors.phone} className="mt-1 text-white" />
+
+                            <AuthInputField
+                                id="password"
+                                label="ລະຫັດຜ່ານ"
+                                type={passwordVisible ? 'text' : 'password'}
+                                value={data.password}
+                                onChange={(e) => setData('password', e.target.value)}
+                                icon={Lock}
+                                autoComplete="current-password"
+                                showToggle
+                                isVisible={passwordVisible}
+                                onToggleVisibility={() => setPasswordVisible((prev) => !prev)}
+                            />
+                            <InputError message={errors.password} className="mt-1 text-white" />
+
+                            <label className="flex items-center gap-2 text-sm text-white/90">
                                 <input
-                                    type="tel"
-                                    name="phone"
-                                    value={data.phone}
-                                    onChange={(e) => setData('phone', e.target.value)}
-                                    placeholder="ເບີໂທລະສັບ"
-                                    className="h-12 w-full rounded-xl border border-white/40 bg-white pl-12 pr-4 text-sm font-medium text-slate-900 outline-none focus:border-white focus:ring-2 focus:ring-white/30"
-                                    autoFocus
+                                    type="checkbox"
+                                    checked={data.remember}
+                                    onChange={(e) => setData('remember', e.target.checked)}
+                                    className="h-4 w-4 rounded border-white/50 text-[#194c9f] focus:ring-[#194c9f]"
                                 />
+                                ຈື່ຂ້ອຍໄວ້
+                            </label>
+
+                            <PrimaryButton type="submit" disabled={processing} className="w-full">
+                                {processing ? 'ກຳລັງເຂົ້າລະບົບ...' : 'ເຂົ້າລະບົບ'}
+                            </PrimaryButton>
+
+                            <div className="text-center text-sm text-white/85">
+                                ຕ້ອງການເຂົ້າລະບົບລູກຄ້າ?{' '}
+                                <Link href={route('login')} className="font-semibold text-white underline">
+                                    ໄປທີ່ /login
+                                </Link>
                             </div>
-                            <div className="relative">
-                                <span className="pointer-events-none absolute inset-y-0 left-0 z-10 flex items-center pl-4 text-[#194c9f]">
-                                    <Lock className="h-5 w-5" strokeWidth={2.2} />
-                                </span>
-                                <input
-                                    type={showStaffPassword ? 'text' : 'password'}
-                                    name="password"
-                                    value={data.password}
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    placeholder="ລະຫັດຜ່ານ"
-                                    className="h-12 w-full rounded-xl border border-white/40 bg-white pl-12 pr-12 text-sm font-medium text-slate-900 outline-none focus:border-white focus:ring-2 focus:ring-white/30"
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() => setShowStaffPassword((prev) => !prev)}
-                                    className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#194c9f] transition hover:text-[#153d82]"
-                                    aria-label={showStaffPassword ? 'ປິດການສະແດງລະຫັດຜ່ານ' : 'ສະແດງລະຫັດຜ່ານ'}
-                                >
-                                    {showStaffPassword ? (
-                                        <EyeOff className="h-5 w-5" strokeWidth={2.2} />
-                                    ) : (
-                                        <Eye className="h-5 w-5" strokeWidth={2.2} />
-                                    )}
-                                </button>
-                            </div>
-                            <button
-                                type="submit"
-                                disabled={processing}
-                                className="h-12 w-full rounded-xl bg-white text-sm font-semibold text-[#153d82] shadow-md transition hover:scale-[1.02] hover:brightness-95 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500"
-                            >
-                                {processing ? 'ກຳລັງເຂົ້າລະບົບ...' : 'ເຂົ້າສູ່ລະບົບ'}
-                            </button>
                         </form>
                     </div>
                 )}

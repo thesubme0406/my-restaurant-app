@@ -2,8 +2,8 @@
 export function getQueueBookingColumns() {
     return [
         { key: 'index', header: '#', cell: (_row, idx) => idx + 1 },
+        { key: 'queue_no', header: 'ຄິວ' },
         { key: 'booking_date', header: 'ວັນທີຈອງ' },
-        { key: 'expected_time', header: 'ເວລາຄາດການ' },
         { key: 'customer_name', header: 'ຊື່ລູກຄ້າ' },
         { key: 'guest_count', header: 'ຈຳນວນຄົນ' },
         { key: 'tier_name', header: 'Buffet Tier' },

@@ -1,115 +1,88 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
-import Checkbox from '@/Components/Checkbox';
+import InputError from '@/Components/InputError';
+import AuthInputField from '@/Pages/Auth/Components/AuthInputField';
+import PrimaryButton from '@/Pages/Auth/Components/PrimaryButton';
 import { Link } from '@inertiajs/react';
 import { Lock, Phone } from 'lucide-react';
 import { useState } from 'react';
-import AuthInputField from '@/Pages/Auth/Components/AuthInputField';
-import PrimaryButton from '@/Pages/Auth/Components/PrimaryButton';
 
-const LOGO_SRC = '/images/oshinei-logo.png?v=20260423';
-
-export default function LoginCard({ data, setData, submit, processing, errors, status }) {
-    const [showPassword, setShowPassword] = useState(false);
-    const [logoError, setLogoError] = useState(false);
-    const [featureNotice, setFeatureNotice] = useState('');
-    const hideRegister =
-        typeof window !== 'undefined' && window.location.pathname.includes('/admin');
+export default function LoginCard({
+    data,
+    setData,
+    submit,
+    processing,
+    errors,
+    status,
+    notice,
+    onNotice,
+}) {
+    const [passwordVisible, setPasswordVisible] = useState(false);
 
     return (
-        <div className="w-[90%] max-w-md rounded-2xl border border-white/15 bg-white/5 p-4 shadow-2xl shadow-black/20 backdrop-blur-md sm:p-6">
-            {/* ຈັດວາງ Logo ຢູ່ກາງ */}
-            <div className="mb-6 flex justify-center">
-                <div className="flex h-32 w-32 items-center justify-center rounded-full border border-white/80 bg-white p-2 shadow-[0_0_25px_rgba(255,255,255,0.45)] sm:h-36 sm:w-36">
-                    {!logoError ? (
-                        <img
-                            src={LOGO_SRC}
-                            alt="Oshinei Logo"
-                            onError={() => setLogoError(true)}
-                            className="h-full w-full rounded-full object-cover"
-                        />
-                    ) : (
-                        <ApplicationLogo className="h-full w-full fill-[#194c9f]" />
-                    )}
+        <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/10 p-6 shadow-2xl backdrop-blur-md">
+            <div className="mb-5 text-center">
+                <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-lg">
+                    <img src="/images/oshinei-logo.png?v=4" alt="Oshinei" className="h-14 w-14 object-contain" />
                 </div>
+                <h1 className="text-2xl font-bold text-white">ຍິນດີຕ້ອນຮັບສູ່ Oshinei</h1>
+                <p className="mt-1 text-sm text-white/85">ເຂົ້າສູ່ລະບົບລູກຄ້າເພື່ອຈອງຄິວໄດ້ທັນທີ</p>
             </div>
 
-            <h1 className="text-center text-2xl font-bold text-white">ເຂົ້າສູ່ລະບົບ</h1>
-            <p className="mt-1 text-center text-sm text-white/80">ຍິນດີຕ້ອນຮັບສູ່ Oshinei</p>
+            {status ? <div className="mb-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">{status}</div> : null}
+            {notice ? <div className="mb-3 rounded-lg bg-white/20 px-3 py-2 text-sm text-white">{notice}</div> : null}
 
-            {status && (
-                <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-                    {status}
-                </div>
-            )}
-            {featureNotice && (
-                <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">
-                    {featureNotice}
-                </div>
-            )}
-
-            <form onSubmit={submit} className="mt-5 space-y-4">
+            <form onSubmit={submit} className="space-y-4">
                 <AuthInputField
                     id="phone"
-                    name="phone"
+                    label="ເບີໂທລະສັບ"
                     type="tel"
                     value={data.phone}
                     onChange={(e) => setData('phone', e.target.value)}
-                    placeholder="ເບີໂທລະສັບ"
-                    autoComplete="tel"
                     icon={Phone}
-                    error={errors.phone}
-                    isFocused={true}
+                    autoComplete="tel"
+                    isFocused
                 />
+                <InputError message={errors.phone} className="mt-1 text-white" />
 
                 <AuthInputField
                     id="password"
-                    name="password"
-                    type="password"
+                    label="ລະຫັດຜ່ານ"
+                    type={passwordVisible ? 'text' : 'password'}
                     value={data.password}
                     onChange={(e) => setData('password', e.target.value)}
-                    placeholder="ລະຫັດຜ່ານ"
-                    autoComplete="current-password"
                     icon={Lock}
-                    error={errors.password}
-                    showToggle={true}
-                    isVisible={showPassword}
-                    onToggleVisibility={() => setShowPassword((prev) => !prev)}
+                    autoComplete="current-password"
+                    showToggle
+                    isVisible={passwordVisible}
+                    onToggleVisibility={() => setPasswordVisible((prev) => !prev)}
                 />
+                <InputError message={errors.password} className="mt-1 text-white" />
 
-                <div className="flex items-center justify-between">
-                    <label className="flex items-center">
-                        <Checkbox
-                            name="remember"
+                <div className="flex items-center justify-between gap-2">
+                    <label className="flex items-center gap-2 text-sm text-white/90">
+                        <input
+                            type="checkbox"
                             checked={data.remember}
                             onChange={(e) => setData('remember', e.target.checked)}
+                            className="h-4 w-4 rounded border-white/50 text-[#194c9f] focus:ring-[#194c9f]"
                         />
-                        <span className="ms-2 text-sm text-white/90">ຈື່ຂ້ອຍໄວ້</span>
+                        ຈື່ຂ້ອຍໄວ້
                     </label>
-                    <button
-                        type="button"
-                        onClick={() => setFeatureNotice('ຂໍອະໄພ, ຕອນນີ້ຍັງບໍ່ເປີດໃຊ້ຟີເຈີລືມລະຫັດຜ່ານ.')}
-                        className="text-sm font-medium text-white/80 underline decoration-white/60 hover:text-white"
-                    >
+                    <button type="button" onClick={onNotice} className="text-sm font-medium text-white underline">
                         ລືມລະຫັດຜ່ານ?
                     </button>
                 </div>
 
-                <PrimaryButton type="submit" disabled={processing}>
-                    {processing ? 'ກຳລັງເຂົ້າລະບົບ...' : 'ເຂົ້າສູ່ລະບົບ'}
+                <PrimaryButton type="submit" disabled={processing} className="w-full">
+                    {processing ? 'ກຳລັງເຂົ້າລະບົບ...' : 'LOG IN'}
                 </PrimaryButton>
-            </form>
 
-            {!hideRegister ? (
-                <p className="mt-5 text-center text-sm text-white/85">
-                    ຍັງບໍ່ມີບັນຊີ?{' '}
-                    <Link
-                        href={route('register')}
-                        className="font-semibold text-white underline decoration-white/70 underline-offset-4 hover:text-slate-100"
-                    >
-                        ລົງທະບຽນ
+                <div className="text-center text-sm text-white/90">
+                    ລູກຄ້າໃໝ່?{' '}
+                    <Link href={route('register')} className="font-semibold text-white underline">
+                        Register
                     </Link>
-                </p>
-            ) : null}
+                </div>
+            </form>
         </div>
     );
 }
