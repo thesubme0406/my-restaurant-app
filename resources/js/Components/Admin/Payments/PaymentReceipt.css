@@ -1,0 +1,224 @@
+/* Narrow thermal-style receipt; print uses 80mm paper width */
+.payment-receipt {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 12px 10px 20px;
+    color: #1e293b;
+    background: #fff;
+    font-family: 'Noto Sans Lao', ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    line-height: 1.45;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.payment-receipt .nums {
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+.payment-receipt__logo-wrap {
+    text-align: center;
+    margin-bottom: 6px;
+}
+
+.payment-receipt__logo {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+}
+
+.payment-receipt__brand {
+    text-align: center;
+    margin: 0 0 6px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #0a2d66;
+}
+
+.payment-receipt__contact {
+    text-align: center;
+    margin: 0 0 12px;
+    font-size: 9.5px;
+    line-height: 1.45;
+    color: #64748b;
+}
+
+.payment-receipt__contact p {
+    margin: 0;
+}
+
+.payment-receipt__meta {
+    font-size: 10.5px;
+    line-height: 1.55;
+    margin-bottom: 12px;
+}
+
+.payment-receipt__meta-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.payment-receipt__meta-key {
+    color: #64748b;
+}
+
+.payment-receipt__meta-val {
+    min-width: 9.25rem;
+    text-align: right;
+    font-weight: 600;
+}
+
+.payment-receipt__bill-check {
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    border-radius: 6px;
+    padding: 7px 8px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: #334155;
+    margin-bottom: 10px;
+}
+
+.payment-receipt__table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 10.5px;
+}
+
+.payment-receipt__table thead th {
+    border-bottom: 1px solid #cbd5e1;
+    padding: 5px 0 7px;
+    font-weight: 700;
+    color: #334155;
+}
+
+.payment-receipt__th-desc {
+    text-align: left;
+    width: 62%;
+}
+
+.payment-receipt__th-amt {
+    text-align: right;
+}
+
+.payment-receipt__table tbody td {
+    padding: 7px 0 5px;
+    vertical-align: top;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.payment-receipt__td-desc {
+    text-align: left;
+    padding-right: 6px;
+    line-height: 1.35;
+}
+
+.payment-receipt__td-amt {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 600;
+}
+
+.payment-receipt__subtotal td {
+    border-bottom: none;
+    padding-top: 8px;
+    font-weight: 700;
+}
+
+.payment-receipt__dash {
+    border: none;
+    border-top: 1px dashed #94a3b8;
+    margin: 10px 0 8px;
+    height: 0;
+}
+
+.payment-receipt__totals {
+    font-size: 10.5px;
+    line-height: 1.65;
+}
+
+.payment-receipt__total-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.payment-receipt__total-key {
+    text-align: right;
+    color: #334155;
+}
+
+.payment-receipt__total-val {
+    min-width: 5.5rem;
+    text-align: right;
+    font-weight: 600;
+}
+
+.payment-receipt__grand {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #0a2d66;
+}
+
+.payment-receipt__grand-val {
+    min-width: 5.5rem;
+    text-align: right;
+}
+
+.payment-receipt__note {
+    margin: 10px 0 0;
+    font-size: 9.5px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.payment-receipt__footer {
+    text-align: center;
+    margin: 14px 0 6px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.payment-receipt__printed {
+    text-align: center;
+    font-size: 9px;
+    color: #64748b;
+    margin: 0;
+}
+
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 4mm;
+    }
+
+    html,
+    body {
+        width: 80mm;
+        margin: 0;
+        padding: 0;
+        background: #fff !important;
+    }
+
+    .payment-receipt {
+        max-width: none;
+        width: 100%;
+        padding: 0;
+    }
+
+    .payment-receipt__dash {
+        border-top: 1px dashed #64748b !important;
+    }
+}

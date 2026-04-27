@@ -8,6 +8,7 @@ import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import MoneyAmountInput from '@/Components/MoneyAmountInput';
 import { formatAmount } from '@/utils/formatAmount';
+import { openPaymentReceiptPrint } from '@/utils/openPaymentReceiptPrint';
 
 const primary = '#194c9f';
 
@@ -200,35 +201,7 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
     };
 
     const printReceipt = (row) => {
-        const receiptHtml = `
-            <html>
-                <head><title>Receipt #${row.id}</title></head>
-                <body style="font-family: 'Noto Sans Lao', Arial, sans-serif; padding: 24px;">
-                    <h2>Payment Receipt</h2>
-                    <hr />
-                    <p><strong>Payment ID:</strong> ${row.id}</p>
-                    <p><strong>Service ID:</strong> ${row.service_id}</p>
-                    <p><strong>Staff:</strong> ${row.staff_name ?? '-'}</p>
-                    <p><strong>Customer:</strong> ${row.customer_name ?? '-'}</p>
-                    <p><strong>Table:</strong> ${row.table_no ?? '-'}</p>
-                    <p><strong>Guests:</strong> ${row.guest_count ?? 0}</p>
-                    <p><strong>Buffet Tier:</strong> ${row.buffet_tier ?? '-'}</p>
-                    <p><strong>Tier Price:</strong> ${formatAmount(row.tier_price)} K</p>
-                    <p><strong>Total:</strong> ${formatAmount(row.total_amount)} K</p>
-                    <p><strong>Method:</strong> ${row.method}</p>
-                    <p><strong>Note:</strong> ${row.note ?? '-'}</p>
-                    <p><strong>Payment Time:</strong> ${row.payment_time}</p>
-                </body>
-            </html>
-        `;
-        const win = window.open('', '_blank', 'width=600,height=800');
-        if (!win) {
-            return;
-        }
-        win.document.write(receiptHtml);
-        win.document.close();
-        win.focus();
-        win.print();
+        openPaymentReceiptPrint(row);
     };
 
     const inputRowClass =
