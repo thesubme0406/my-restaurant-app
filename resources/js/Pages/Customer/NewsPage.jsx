@@ -110,7 +110,7 @@ export default function NewsPage() {
                         </p>
                     </div>
                 ) : (
-                    <ul className="space-y-5">
+                    <ul className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
                         {cards.map(({ post, preview, needsMore }) => (
                             <li key={post.id}>
                                 <button

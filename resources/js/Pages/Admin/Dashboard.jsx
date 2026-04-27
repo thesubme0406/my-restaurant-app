@@ -163,12 +163,25 @@ function findQueueEntry(id, queue, skippedQueue) {
     return queue.find((q) => q.id === id) ?? skippedQueue.find((q) => q.id === id) ?? null;
 }
 
-function firstTableIdForGroup(groupSize, tables) {
+function suggestedTableIdsForGroup(groupSize, tables) {
     if (!tables?.length) {
-        return '';
+        return [];
     }
-    const fit = tables.find((t) => t.capacity >= groupSize);
-    return String((fit ?? tables[0]).id);
+    const singleFit = tables.find((t) => Number(t.capacity) >= Number(groupSize || 0));
+    if (singleFit) {
+        return [String(singleFit.id)];
+    }
+    const sorted = [...tables].sort((a, b) => Number(b.capacity || 0) - Number(a.capacity || 0));
+    const picked = [];
+    let total = 0;
+    for (const table of sorted) {
+        picked.push(String(table.id));
+        total += Number(table.capacity || 0);
+        if (total >= Number(groupSize || 0)) {
+            break;
+        }
+    }
+    return picked;
 }
 
 /** ລຽງລຳດັບຄິວ: ເກົ່າສຸດຢູ່ເທິງ, ໃໝ່ສຸດຢູ່ລຸ່ມ (FIFO / queued_at), ກົງກັບແຜງ */
@@ -200,7 +213,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
 
     const [showAddQueue, setShowAddQueue] = useState(false);
     const [pairQueueToTable, setPairQueueToTable] = useState(null);
-    const [pairQueueSelectedTableId, setPairQueueSelectedTableId] = useState('');
+    const [pairQueueSelectedTableIds, setPairQueueSelectedTableIds] = useState([]);
     const [pairTableToQueue, setPairTableToQueue] = useState(null);
     const [pairTableSelectedBookingId, setPairTableSelectedBookingId] = useState('');
     const [occupiedDetail, setOccupiedDetail] = useState(null);
@@ -378,7 +391,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
         setPairQueueToTable({ bookingId });
         const entry = findQueueEntry(bookingId, queue, skippedQueue);
         const groupSize = entry?.group_size ?? 0;
-        setPairQueueSelectedTableId(firstTableIdForGroup(groupSize, availableTables));
+        setPairQueueSelectedTableIds(suggestedTableIdsForGroup(groupSize, availableTables));
     };
 
     const openPairTableToQueue = (table) => {
@@ -450,13 +463,13 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
     };
 
     const submitPairQueueToTable = () => {
-        if (!pairQueueToTable || !pairQueueSelectedTableId) return;
+        if (!pairQueueToTable || pairQueueSelectedTableIds.length === 0) return;
         run('pair-queue', () =>
             router.post(
                 route('queue-dashboard.assignments.store'),
                 {
                     booking_id: pairQueueToTable.bookingId,
-                    table_id: Number(pairQueueSelectedTableId),
+                    table_ids: pairQueueSelectedTableIds.map((id) => Number(id)),
                 },
                 {
                     ...inertiaOpts,
@@ -487,9 +500,9 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
     const pairQueueEntry = pairQueueToTable
         ? findQueueEntry(pairQueueToTable.bookingId, queue, skippedQueue)
         : null;
-    const pairSelectedTable = availableTables.find((t) => String(t.id) === pairQueueSelectedTableId);
-    const pairQueueCapacityOk =
-        pairQueueEntry && pairSelectedTable && pairQueueEntry.group_size <= pairSelectedTable.capacity;
+    const pairSelectedTables = availableTables.filter((t) => pairQueueSelectedTableIds.includes(String(t.id)));
+    const pairSelectedCapacity = pairSelectedTables.reduce((sum, t) => sum + Number(t.capacity || 0), 0);
+    const pairQueueCapacityOk = pairQueueEntry && pairSelectedCapacity >= Number(pairQueueEntry.group_size || 0);
 
     const pairTableBookingEntry = assignableQueue.find((q) => String(q.id) === pairTableSelectedBookingId);
     const pairTableCapacityOk =
@@ -736,7 +749,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                             onPrimary={submitPairQueueToTable}
                             primaryLabel="ຢືນຢັນ"
                             primaryDisabled={
-                                !pairQueueSelectedTableId ||
+                                pairQueueSelectedTableIds.length === 0 ||
                                 availableTables.length === 0 ||
                                 processing === 'pair-queue' ||
                                 !pairQueueCapacityOk
@@ -756,27 +769,51 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                             </div>
                         </div>
                         <div>
-                            <label className={queueFormLabelClass}>ເລືອກໂຕະວ່າງ</label>
+                            <label className={queueFormLabelClass}>ເລືອກໂຕະວ່າງ (ເລືອກໄດ້ຫຼາຍໂຕະ)</label>
                             {availableTables.length === 0 ? (
                                 <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                                     ບໍ່ມີໂຕະວ່າງໃນຕອນນີ້
                                 </p>
                             ) : (
-                                <select
-                                    className={queueFormControlClass}
-                                    value={pairQueueSelectedTableId}
-                                    onChange={(e) => setPairQueueSelectedTableId(e.target.value)}
-                                >
-                                    {availableTables.map((t) => (
-                                        <option key={t.id} value={String(t.id)}>
-                                            ໂຕະ {t.table_no} · {t.capacity} ບ່ອນນັ່ງ
-                                        </option>
-                                    ))}
-                                </select>
+                                <div className="mt-2 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-white p-2">
+                                    {availableTables.map((t) => {
+                                        const checked = pairQueueSelectedTableIds.includes(String(t.id));
+                                        return (
+                                            <label
+                                                key={t.id}
+                                                className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm transition ${
+                                                    checked
+                                                        ? 'border-[#194c9f] bg-[#194c9f]/10 text-[#194c9f]'
+                                                        : 'border-slate-200 bg-white text-slate-700 hover:border-[#194c9f]/30'
+                                                }`}
+                                            >
+                                                <span className="font-semibold">ໂຕະ {t.table_no}</span>
+                                                <span className="text-xs">{t.capacity} ບ່ອນນັ່ງ</span>
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4 accent-[#194c9f]"
+                                                    checked={checked}
+                                                    onChange={() => {
+                                                        const id = String(t.id);
+                                                        setPairQueueSelectedTableIds((prev) =>
+                                                            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+                                                        );
+                                                    }}
+                                                />
+                                            </label>
+                                        );
+                                    })}
+                                </div>
                             )}
-                            {pairQueueEntry && pairSelectedTable && !pairQueueCapacityOk ? (
+                            {pairQueueEntry ? (
+                                <p className="mt-2 text-xs text-slate-600">
+                                    ຄວາມຈຸລວມ: <span className="font-bold text-slate-900">{pairSelectedCapacity}</span> /{' '}
+                                    ຕ້ອງການ <span className="font-bold text-slate-900">{pairQueueEntry.group_size}</span> ຄົນ
+                                </p>
+                            ) : null}
+                            {pairQueueEntry && !pairQueueCapacityOk ? (
                                 <p className="mt-2 text-sm font-semibold text-rose-700" role="alert">
-                                    ໂຕະນີ້ບັນຈຸບໍ່ພໍ
+                                    ຄວາມຈຸໂຕະລວມຍັງບໍ່ພໍ
                                 </p>
                             ) : null}
                         </div>

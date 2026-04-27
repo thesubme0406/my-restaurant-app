@@ -64,9 +64,6 @@ class CustomerNewsController extends Controller
 
     public function index(Request $request): Response
     {
-        $customer = $request->user('customer');
-        abort_if($customer === null, 403);
-
         $postId = (int) $request->query('post', 0);
 
         return Inertia::render('Customer/NewsPage', [
@@ -80,9 +77,6 @@ class CustomerNewsController extends Controller
      */
     public function publishedApi(Request $request): JsonResponse
     {
-        $customer = $request->user('customer');
-        abort_if($customer === null, 403);
-
         return response()->json([
             'data' => $this->publishedPostsPayload(),
         ]);

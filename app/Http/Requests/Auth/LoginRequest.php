@@ -8,7 +8,6 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
@@ -29,7 +28,6 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'account_type' => ['required', 'string', Rule::in(['staff', 'customer'])],
             'phone' => ['required', 'string', 'max:32'],
             'password' => ['required', 'string'],
         ];
@@ -40,13 +38,16 @@ class LoginRequest extends FormRequest
      *
      * @throws ValidationException
      */
-    public function authenticate(): void
+    public function authenticate(string $guard): void
     {
         $this->ensureIsNotRateLimited();
 
-        $guard = $this->string('account_type')->toString();
+        $credentials = [
+            'phone' => $this->normalizedPhone(),
+            'password' => $this->input('password'),
+        ];
 
-        if (! Auth::guard($guard)->attempt($this->only('phone', 'password'), $this->boolean('remember'))) {
+        if (! Auth::guard($guard)->attempt($credentials, $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -85,6 +86,11 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('account_type')).'|'.Str::lower($this->string('phone')).'|'.$this->ip());
+        return Str::transliterate(Str::lower($this->normalizedPhone()).'|'.$this->ip());
+    }
+
+    public function normalizedPhone(): string
+    {
+        return preg_replace('/\D+/', '', (string) $this->input('phone')) ?? '';
     }
 }

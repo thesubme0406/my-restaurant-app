@@ -36,6 +36,6 @@ class CustomerRegistrationController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended(route('customer.home', absolute: false));
     }
 }

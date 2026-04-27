@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
+use App\Models\Booking;
 use App\Models\BuffetTier;
 use App\Models\Menu;
+use Carbon\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -61,8 +63,18 @@ class CustomerHomeController extends Controller
             ];
         })->values()->all();
 
+        // ນັບຄິວລໍຖ້າຕາມ logic ດຽວກັບ admin dashboard ຂອງ "ມື້ນີ້" (ຍັງບໍ່ໄດ້ນັ່ງໂຕະ)
+        $today = Carbon::today()->toDateString();
+        $waitingQueueCount = Booking::query()
+            ->whereDate('expected_time', $today)
+            ->whereIn('status', ['waiting', 'pending', 'confirmed'])
+            ->whereNull('table_id')
+            ->count();
+
         return Inertia::render('Customer/Home', [
             'buffetTiersWithMenus' => $buffetTiersWithMenus,
+            'waitingQueueCount' => $waitingQueueCount,
+            'currentDateTime' => Carbon::now()->toIso8601String(),
         ]);
     }
 }

@@ -12,36 +12,50 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
-    public function create(): Response
+    public function createCustomer(Request $request): Response
     {
         return Inertia::render('Auth/Login', [
             'status' => session('status'),
+            'isStaffLogin' => false,
+            'redirectTo' => $request->string('redirect_to')->toString(),
         ]);
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
-    public function store(LoginRequest $request): RedirectResponse
+    public function createStaff(): Response
     {
-        $request->authenticate();
+        return Inertia::render('Auth/Login', [
+            'status' => session('status'),
+            'isStaffLogin' => true,
+            'redirectTo' => '',
+        ]);
+    }
+
+    public function storeCustomer(LoginRequest $request): RedirectResponse
+    {
+        $request->authenticate('customer');
 
         $request->session()->regenerate();
 
-        $guard = $request->string('account_type')->toString();
+        $redirectTo = $request->string('redirect_to')->toString();
+        if ($redirectTo !== '' && str_starts_with($redirectTo, '/')) {
+            return redirect()->to($redirectTo);
+        }
 
-        return match ($guard) {
-            'staff' => redirect()->intended(
-                Auth::guard('staff')->user()?->role === 'manager'
-                    ? route('admin.dashboard', absolute: false)
-                    : route('staff.dashboard', absolute: false)
-            ),
-            'customer' => redirect()->intended(route('customer.dashboard', absolute: false)),
-            default => redirect()->intended(route('dashboard', absolute: false)),
-        };
+        return redirect()->intended(route('customer.home', absolute: false));
+    }
+
+    public function storeStaff(LoginRequest $request): RedirectResponse
+    {
+        $request->authenticate('staff');
+
+        $request->session()->regenerate();
+
+        // ປ່ຽນເສັ້ນທາງໄປໜ້າ Dashboard ຕາມບົດບາດພະນັກງານ
+        return redirect()->intended(
+            Auth::guard('staff')->user()?->role === 'manager'
+                ? route('admin.dashboard', absolute: false)
+                : route('staff.dashboard', absolute: false)
+        );
     }
 
     /**
@@ -57,6 +71,6 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect()->route('login');
     }
 }

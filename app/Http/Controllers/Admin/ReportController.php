@@ -8,6 +8,7 @@ use App\Models\BuffetTier;
 use App\Models\Menu;
 use App\Models\MenuCatg;
 use App\Models\Payment;
+use App\Models\Service;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -28,6 +29,7 @@ class ReportController extends Controller
             'queue_statistics',
             'queue_booking',
             'queue_progress',
+            'service',
             'menu',
             'ingredient_usage',
             'ingredient_purchase',
@@ -166,6 +168,10 @@ class ReportController extends Controller
             return $this->ingredientImportPayload($from, $to, $supplierId);
         }
 
+        if ($type === 'service') {
+            return $this->serviceReportPayload($from, $to, $tierId, $queueStatus);
+        }
+
         return [
             'rows' => [],
             'summary' => ['total' => 0, 'count' => 0, 'label' => 'No data yet'],
@@ -193,11 +199,13 @@ class ReportController extends Controller
             ->selectRaw('payments.id as payment_id, payments.payment_time, payments.method, payments.total_amount')
             ->selectRaw('services.id as service_id')
             ->selectRaw('bookings.guest_count, buffet_tiers.tier_name, bookings.table_id, bookings.tier_id')
+            ->selectRaw('staffs.name as staff_name, staffs.surname as staff_surname')
             ->selectRaw('tables.table_no')
             ->join('services', 'services.id', '=', 'payments.service_id')
             ->join('bookings', 'bookings.id', '=', 'services.booking_id')
             ->leftJoin('buffet_tiers', 'buffet_tiers.id', '=', 'bookings.tier_id')
             ->leftJoin('tables', 'tables.id', '=', 'bookings.table_id')
+            ->leftJoin('staffs', 'staffs.id', '=', 'payments.staff_id')
             ->whereBetween('payments.payment_time', [$fromDate, $toDate]);
 
         if ($methodNorm !== 'all') {
@@ -211,15 +219,21 @@ class ReportController extends Controller
         $rows = $query
             ->orderByDesc('payments.payment_time')
             ->get()
-            ->map(fn ($row): array => [
-                'payment_id' => (int) $row->payment_id,
-                'payment_time' => optional($row->payment_time)->format('Y-m-d H:i') ?? '—',
-                'table_no' => $row->table_no ?? '—',
-                'tier_name' => $row->tier_name ?? '—',
-                'guest_count' => (int) ($row->guest_count ?? 0),
-                'method' => $row->method,
-                'total_amount' => (float) ($row->total_amount ?? 0),
-            ])
+            ->map(function ($row): array {
+                $staffFullName = trim((string) (($row->staff_name ?? '').' '.($row->staff_surname ?? '')));
+
+                return [
+                    'payment_id' => (int) $row->payment_id,
+                    'payment_time' => optional($row->payment_time)->format('Y-m-d H:i') ?? '—',
+                    'service_id' => (int) ($row->service_id ?? 0),
+                    'table_no' => $row->table_no ?? '—',
+                    'tier_name' => $row->tier_name ?? '—',
+                    'guest_count' => (int) ($row->guest_count ?? 0),
+                    'method' => $row->method,
+                    'closed_by' => $staffFullName !== '' ? $staffFullName : '—',
+                    'total_amount' => (float) ($row->total_amount ?? 0),
+                ];
+            })
             ->values()
             ->all();
 
@@ -428,12 +442,9 @@ class ReportController extends Controller
                 $status = strtolower((string) ($row->status ?? ''));
                 $createdAt = $row->booking_created_at ? Carbon::parse($row->booking_created_at) : null;
                 $displayDate = $expectedAt?->format('Y-m-d') ?? $createdAt?->format('Y-m-d') ?? 'N/A';
-                $displayTime = $expectedAt?->format('H:i') ?? $createdAt?->format('H:i') ?? 'N/A';
-
                 return [
                     'queue_no' => $row->queue_no ?: ('BK-'.$row->id),
                     'booking_date' => $displayDate,
-                    'expected_time' => $displayTime,
                     'customer_name' => $row->customer_name ?: ($row->booking_customer_name ?: 'N/A'),
                     'guest_count' => (int) ($row->guest_count ?? 0),
                     'tier_name' => $row->tier_name ?? 'N/A',
@@ -763,6 +774,91 @@ class ReportController extends Controller
                 'total_import_amount' => array_sum(array_column($rows, 'line_total')),
                 'unique_imports' => count(array_unique(array_column($rows, 'import_id'))),
                 'label' => 'Ingredient import report',
+            ],
+        ];
+    }
+
+    /**
+     * ລາຍງານບໍລິການ (Service session): 1 service_id = 1 ແຖວ
+     *
+     * @param  'all'|numeric-string  $tierId
+     * @param  'all'|'paid'|'unpaid'  $servicePaymentStatus
+     * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
+     */
+    private function serviceReportPayload(
+        string $from,
+        string $to,
+        string $tierId = 'all',
+        string $servicePaymentStatus = 'all',
+    ): array {
+        $fromDate = Carbon::parse($from)->startOfDay();
+        $toDate = Carbon::parse($to)->endOfDay();
+        $tierNorm = ($tierId !== '' && $tierId !== 'all' && is_numeric($tierId)) ? (int) $tierId : null;
+        $statusNorm = in_array($servicePaymentStatus, ['all', 'paid', 'unpaid'], true) ? $servicePaymentStatus : 'all';
+
+        $rows = Service::query()
+            ->with([
+                'booking.customer',
+                'booking.buffetTier',
+                'serviceDetails.table',
+                'payment.staff',
+            ])
+            ->whereBetween('services.start_time', [$fromDate, $toDate])
+            ->when($tierNorm !== null, fn ($q) => $q->whereHas('booking', fn ($bq) => $bq->where('tier_id', $tierNorm)))
+            ->when($statusNorm === 'paid', fn ($q) => $q->whereHas('payment'))
+            ->when($statusNorm === 'unpaid', fn ($q) => $q->whereDoesntHave('payment'))
+            ->orderByDesc('services.start_time')
+            ->get()
+            ->map(function (Service $row): array {
+                $booking = $row->booking;
+                $payment = $row->payment;
+                $start = $row->start_time ? Carbon::parse($row->start_time) : null;
+                $end = $row->end_time ? Carbon::parse($row->end_time) : null;
+                $duration = ($start && $end) ? max(0, $start->diffInMinutes($end)) : null;
+                $isPaid = $payment !== null;
+                $guestCount = (int) ($booking?->guest_count ?? 0);
+                $tierPrice = (float) ($booking?->buffetTier?->price ?? 0);
+                $fallbackTotal = $guestCount > 0 ? $guestCount * $tierPrice : $tierPrice;
+                $staffFullName = trim((string) (($payment?->staff?->name ?? '').' '.($payment?->staff?->surname ?? '')));
+                $tableNos = $row->serviceDetails
+                    ->map(fn ($detail): string => (string) ($detail->table?->table_no ?? ''))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
+
+                return [
+                    'service_id' => (int) $row->id,
+                    'queue_no' => $booking?->queue_no ?? '—',
+                    'table_no' => $tableNos !== [] ? implode(' + ', $tableNos) : '—',
+                    'customer_name' => $booking?->customer?->name ?: ($booking?->customer_name ?: '—'),
+                    'tier_name' => $booking?->buffetTier?->tier_name ?? '—',
+                    'guest_count' => $guestCount,
+                    'start_time' => $start?->format('Y-m-d H:i') ?? '—',
+                    'end_time' => $end?->format('Y-m-d H:i') ?? '—',
+                    'duration_min' => $duration,
+                    'payment_status' => $isPaid ? 'paid' : 'unpaid',
+                    'payment_method' => $payment?->method ?? '—',
+                    'total_amount' => (float) ($payment?->total_amount ?? $fallbackTotal),
+                    'closed_by' => $staffFullName !== '' ? $staffFullName : '—',
+                ];
+            })
+            ->values()
+            ->all();
+
+        $paidCount = count(array_filter($rows, fn ($r) => $r['payment_status'] === 'paid'));
+        $durations = array_values(array_filter(array_map(fn ($r) => $r['duration_min'], $rows), fn ($v) => is_numeric($v)));
+        $avgDuration = count($durations) > 0 ? (int) round(array_sum($durations) / count($durations)) : 0;
+
+        return [
+            'rows' => $rows,
+            'summary' => [
+                'total_services' => count($rows),
+                'paid_count' => $paidCount,
+                'unpaid_count' => count($rows) - $paidCount,
+                'avg_duration_min' => $avgDuration,
+                'total_amount' => array_sum(array_column($rows, 'total_amount')),
+                'label' => 'Service report',
             ],
         ];
     }

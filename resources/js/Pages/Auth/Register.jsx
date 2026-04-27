@@ -1,7 +1,9 @@
 import InputError from '@/Components/InputError';
-import PrimaryButton from '@/Components/PrimaryButton';
-import GuestLayout from '@/Layouts/GuestLayout';
+import AuthInputField from '@/Pages/Auth/Components/AuthInputField';
+import PrimaryButton from '@/Pages/Auth/Components/PrimaryButton';
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Lock, Phone, User } from 'lucide-react';
+import { useState } from 'react';
 
 export default function Register() {
     const { data, setData, post, processing, errors } = useForm({
@@ -16,120 +18,105 @@ export default function Register() {
         post(route('register'));
     };
 
-    const fieldClass =
-        'mt-1 w-full border-0 border-b border-slate-300 bg-transparent px-0 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-0';
+    const [passwordVisible, setPasswordVisible] = useState(false);
+    const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
 
     return (
-        <GuestLayout>
+        <div className="min-h-screen bg-gradient-to-br from-[#194c9f] via-[#225ab9] to-[#143a78] p-4">
             <Head title="Register" />
 
-            <div className="space-y-8">
-                <div>
-                    <h1 className="text-lg font-medium tracking-tight text-slate-900">
-                        Create account
-                    </h1>
-                    <p className="mt-1 text-sm text-slate-500">
-                        Customers only. Book tables and manage your visits.
-                    </p>
-                </div>
+            <div className="mx-auto flex min-h-screen w-full max-w-6xl items-center justify-center">
+                <div className="w-full max-w-md rounded-2xl border border-white/25 bg-white/10 p-6 shadow-2xl backdrop-blur-md">
+                    <div className="mb-5 text-center">
+                        <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-white shadow-lg">
+                            <img src="/images/oshinei-logo.png?v=4" alt="Oshinei" className="h-14 w-14 object-contain" />
+                        </div>
+                        <h1 className="text-2xl font-bold text-white">ສ້າງບັນຊີລູກຄ້າ</h1>
+                        <p className="mt-1 text-sm text-white/85">ລົງທະບຽນເພື່ອຈອງຄິວແລະເບິ່ງເມນູ</p>
+                    </div>
 
-                <form onSubmit={submit} className="space-y-6">
+                    <form onSubmit={submit} className="space-y-4">
                     <div>
-                        <label
-                            htmlFor="name"
-                            className="text-xs font-medium uppercase tracking-wide text-slate-500"
-                        >
-                            Name
-                        </label>
-                        <input
+                        <AuthInputField
                             id="name"
+                            label="ຊື່ຂອງທ່ານ"
                             type="text"
-                            name="name"
                             value={data.name}
-                            className={fieldClass}
-                            autoComplete="name"
-                            autoFocus
                             onChange={(e) => setData('name', e.target.value)}
+                            icon={User}
+                            autoComplete="name"
+                            isFocused
                         />
                         <InputError message={errors.name} className="mt-1" />
                     </div>
 
                     <div>
-                        <label
-                            htmlFor="phone"
-                            className="text-xs font-medium uppercase tracking-wide text-slate-500"
-                        >
-                            Phone
-                        </label>
-                        <input
+                        <AuthInputField
                             id="phone"
+                            label="ເບີໂທລະສັບ"
                             type="tel"
-                            name="phone"
                             value={data.phone}
-                            className={fieldClass}
-                            autoComplete="tel"
                             onChange={(e) => setData('phone', e.target.value)}
+                            icon={Phone}
+                            autoComplete="tel"
                         />
-                        <InputError message={errors.phone} className="mt-1" />
+                        <InputError message={errors.phone} className="mt-1 text-white" />
                     </div>
 
                     <div>
-                        <label
-                            htmlFor="password"
-                            className="text-xs font-medium uppercase tracking-wide text-slate-500"
-                        >
-                            Password
-                        </label>
-                        <input
+                        <AuthInputField
                             id="password"
-                            type="password"
-                            name="password"
+                            label="ລະຫັດຜ່ານ"
+                            type={passwordVisible ? 'text' : 'password'}
                             value={data.password}
-                            className={fieldClass}
-                            autoComplete="new-password"
                             onChange={(e) => setData('password', e.target.value)}
+                            icon={Lock}
+                            autoComplete="new-password"
+                            showToggle
+                            isVisible={passwordVisible}
+                            onToggleVisibility={() => setPasswordVisible((prev) => !prev)}
                         />
-                        <InputError message={errors.password} className="mt-1" />
+                        <InputError message={errors.password} className="mt-1 text-white" />
                     </div>
 
                     <div>
-                        <label
-                            htmlFor="password_confirmation"
-                            className="text-xs font-medium uppercase tracking-wide text-slate-500"
-                        >
-                            Confirm password
-                        </label>
-                        <input
+                        <AuthInputField
                             id="password_confirmation"
-                            type="password"
-                            name="password_confirmation"
+                            label="ຢືນຢັນລະຫັດຜ່ານ"
+                            type={confirmPasswordVisible ? 'text' : 'password'}
                             value={data.password_confirmation}
-                            className={fieldClass}
-                            autoComplete="new-password"
                             onChange={(e) =>
                                 setData('password_confirmation', e.target.value)
+                            }
+                            icon={Lock}
+                            autoComplete="new-password"
+                            showToggle
+                            isVisible={confirmPasswordVisible}
+                            onToggleVisibility={() =>
+                                setConfirmPasswordVisible((prev) => !prev)
                             }
                         />
                     </div>
 
                     <PrimaryButton
-                        className="w-full justify-center rounded-none bg-slate-900 px-4 py-3 text-sm font-medium text-white hover:bg-slate-800 focus:ring-slate-900"
+                        className="mt-2 w-full"
                         disabled={processing}
                     >
-                        Register
+                        {processing ? 'ກຳລັງລົງທະບຽນ...' : 'REGISTER'}
                     </PrimaryButton>
                 </form>
 
-                <p className="text-center text-sm text-slate-500">
-                    Already have an account?{' '}
+                <p className="mt-4 text-center text-sm text-white/90">
+                    ມີບັນຊີແລ້ວ?{' '}
                     <Link
                         href={route('login')}
-                        className="font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-900"
+                        className="font-semibold text-white underline"
                     >
-                        Sign in
+                        ເຂົ້າສູ່ລະບົບ
                     </Link>
                 </p>
+                </div>
             </div>
-        </GuestLayout>
+        </div>
     );
 }

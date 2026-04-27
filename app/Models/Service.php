@@ -92,10 +92,19 @@ class Service extends Model
 
     /**
      * ສ້າງແຖວ services + service_detail ຖ້າຄິວນັ່ງໂຕະແລ້ວແຕ່ຍັງບໍ່ມີເຊດຊັນ in_service ທີ່ຍັງບໍ່ຊຳລະ.
+     *
+     * @param  array<int>|null  $tableIds
      */
-    public static function ensureOpenSessionForSeatedBooking(Booking $booking): ?Service
+    public static function ensureOpenSessionForSeatedBooking(Booking $booking, ?array $tableIds = null): ?Service
     {
-        if ($booking->table_id === null) {
+        $normalizedTableIds = collect($tableIds ?? [$booking->table_id])
+            ->map(fn ($id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($normalizedTableIds === []) {
             return null;
         }
 
@@ -105,10 +114,19 @@ class Service extends Model
             ->whereDoesntHave('payment')
             ->first();
         if ($existing !== null) {
+            $currentTableIds = $existing->serviceDetails()->pluck('table_id')->map(fn ($id): int => (int) $id)->all();
+            if ($currentTableIds === []) {
+                foreach ($normalizedTableIds as $tableId) {
+                    ServiceDetail::query()->create([
+                        'service_id' => $existing->id,
+                        'table_id' => $tableId,
+                    ]);
+                }
+            }
             return $existing;
         }
 
-        return DB::transaction(function () use ($booking): ?Service {
+        return DB::transaction(function () use ($booking, $normalizedTableIds): ?Service {
             $locked = Booking::query()->whereKey($booking->id)->lockForUpdate()->first();
             if ($locked === null) {
                 return null;
@@ -123,7 +141,7 @@ class Service extends Model
                 return $again;
             }
 
-            if ($locked->table_id === null) {
+            if ($normalizedTableIds === []) {
                 return null;
             }
 
@@ -135,10 +153,12 @@ class Service extends Model
                 'service_code' => self::newServiceCode(),
             ]);
 
-            ServiceDetail::query()->create([
-                'service_id' => $service->id,
-                'table_id' => $locked->table_id,
-            ]);
+            foreach ($normalizedTableIds as $tableId) {
+                ServiceDetail::query()->create([
+                    'service_id' => $service->id,
+                    'table_id' => $tableId,
+                ]);
+            }
 
             return $service;
         });

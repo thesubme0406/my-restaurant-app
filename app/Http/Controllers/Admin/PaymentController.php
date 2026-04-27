@@ -45,7 +45,13 @@ class PaymentController extends Controller
     private function mapActiveService(Service $service): array
     {
         $booking = $service->booking;
-        $tableNo = $service->serviceDetails->first()?->table?->table_no ?? '—';
+        $tableNos = $service->serviceDetails
+            ->map(fn ($detail): string => (string) ($detail->table?->table_no ?? ''))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+        $tableNo = $tableNos !== [] ? implode(' + ', $tableNos) : '—';
         $people = (int) ($booking?->guest_count ?? 0);
         $tierName = $booking?->buffetTier?->tier_name ?? '—';
         $tierPrice = (float) ($booking?->buffetTier?->price ?? 0);
@@ -55,6 +61,7 @@ class PaymentController extends Controller
         return [
             'service_id' => $service->id,
             'service_code' => $service->service_code,
+            'queue_no' => $booking?->queue_no ?: '—',
             'customer_name' => $booking?->customer?->name ?? $booking?->customer_name ?? '—',
             'guest_count' => $people,
             'table_no' => $tableNo,
@@ -117,12 +124,19 @@ class PaymentController extends Controller
             ->get()
             ->map(function (Payment $p): array {
                 $booking = $p->service?->booking;
-                $tableNo = $p->service?->serviceDetails?->first()?->table?->table_no ?? '—';
+                $tableNos = $p->service?->serviceDetails
+                    ?->map(fn ($detail): string => (string) ($detail->table?->table_no ?? ''))
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all() ?? [];
+                $tableNo = $tableNos !== [] ? implode(' + ', $tableNos) : '—';
 
                 return [
                     'id' => $p->id,
                     'service_id' => $p->service_id,
                     'staff_id' => $p->staff_id,
+                    'staff_name' => $p->staff?->name ?? '—',
                     'customer_name' => $booking?->customer?->name ?? $booking?->customer_name ?? '—',
                     'guest_count' => (int) ($booking?->guest_count ?? 0),
                     'buffet_tier' => $booking?->buffetTier?->tier_name ?? '—',
@@ -249,22 +263,31 @@ class PaymentController extends Controller
                 return;
             }
 
+            $paidAt = now();
+            $diningFinishedAt = $service->end_time ?? $paidAt;
+
             Payment::query()->create([
                 'service_id' => $service->id,
                 'staff_id' => $staffId,
                 'total_amount' => $data['total_amount'],
                 'method' => $data['method'],
                 'note' => $data['note'] ?? null,
-                'payment_time' => now(),
+                'payment_time' => $paidAt,
             ]);
 
             $service->update([
                 'status' => 'completed',
-                'end_time' => $service->end_time ?? now(),
+                'end_time' => $diningFinishedAt,
             ]);
 
             if ($service->booking) {
-                $service->booking->update(['status' => 'finished']);
+                // ບັນທຶກເວລາຈົບການກິນ + ເວລາຊຳລະ ໄວ້ໃນ booking ເພື່ອວິເຄາະ lifecycle ໄດ້ຈາກຕາຕະລາງດຽວ.
+                $service->booking->update([
+                    'status' => 'finished',
+                    'called_at' => $service->booking->called_at ?? $service->start_time,
+                    'dining_finished_at' => $service->booking->dining_finished_at ?? $diningFinishedAt,
+                    'paid_at' => $paidAt,
+                ]);
             }
 
             // ຊິງຄ໌ usage_status ໃຫ້ກົງກັບຄວາມຈິງຫຼັງຊຳລະ (ສະຖານະມີລູກຄ້າເບິ່ງຈາກບໍລິການເປັນຫຼັກ).

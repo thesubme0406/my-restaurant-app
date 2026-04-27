@@ -122,6 +122,7 @@ function ConfirmModal({ open, queueNo, onCancel, onConfirm, loading }) {
 export default function ReservePage({
     waiting_count = 0,
     estimated_wait_minutes = 0,
+    queue_flow = { now_serving: null, up_next: [], ahead_of_you: null, progress_pct: 0, is_called: false },
     active_queues = [],
     booking_history = [],
     buffet_tiers = [],
@@ -130,6 +131,7 @@ export default function ReservePage({
     const [clock, setClock] = useState(new Date());
     const [waitingCount, setWaitingCount] = useState(waiting_count);
     const [estimatedWait, setEstimatedWait] = useState(estimated_wait_minutes);
+    const [queueFlow, setQueueFlow] = useState(queue_flow);
     const [currentQueues, setCurrentQueues] = useState(active_queues);
     const [history, setHistory] = useState(booking_history);
     const [canceling, setCanceling] = useState(false);
@@ -165,6 +167,7 @@ export default function ReservePage({
         const data = await response.json();
         setWaitingCount(data.waiting_count ?? 0);
         setEstimatedWait(data.estimated_wait_minutes ?? 0);
+        setQueueFlow(data.queue_flow ?? { now_serving: null, up_next: [], ahead_of_you: null, progress_pct: 0, is_called: false });
         setCurrentQueues(Array.isArray(data.active_queues) ? data.active_queues : []);
         setHistory(Array.isArray(data.booking_history) ? data.booking_history : []);
     };
@@ -325,7 +328,7 @@ export default function ReservePage({
             <Head title="ຈອງຄິວ" />
 
             <div className="space-y-3">
-                <h1 className="text-center text-3xl font-extrabold text-[#194c9f]">ຈອງຄິວຮ້ານໂອຊິເນ</h1>
+                <h1 className="text-center text-3xl font-extrabold text-slate-900">ຈອງຄິວຮ້ານໂອຊິເນ</h1>
                 {successMessage && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{successMessage}</div>}
                 {errorMessage && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{errorMessage}</div>}
 
@@ -374,7 +377,7 @@ export default function ReservePage({
                                         setDetailQueue(queue);
                                     }
                                 }}
-                                className="flex cursor-pointer items-center justify-between rounded-xl border border-[#194c9f]/40 bg-white p-3 shadow-md outline-none ring-[#194c9f] focus-visible:ring-2"
+                                className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-md outline-none ring-[#194c9f] transition hover:border-slate-300 focus-visible:ring-2"
                                 style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
                             >
                                 <div className="flex items-center gap-3">
@@ -383,13 +386,13 @@ export default function ReservePage({
                                     </div>
                                     <div>
                                         <p className="text-xs text-slate-500">ຄິວຂອງທ່ານ</p>
-                                        <p className="text-3xl font-extrabold text-[#194c9f]">{queue.queue_no}</p>
+                                        <p className="text-3xl font-extrabold text-slate-900">{queue.queue_no}</p>
                                         <p className="text-xs text-slate-500">{queue.guest_count} ຄົນ</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-[#194c9f]">
-                                        <CheckCircle2 className="h-3.5 w-3.5" />
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-[#194c9f]" />
                                         ~{queue.estimated_wait_time ?? estimatedWait}
                                     </span>
                                     <button
@@ -411,8 +414,67 @@ export default function ReservePage({
                     </div>
                 )}
 
+                {/* ເພີ່ມ Dashboard ສະແດງລຳດັບຄິວແບບ Real-time */}
+                <section className="my-4 overflow-hidden rounded-2xl border border-[#194c9f]/20 bg-gradient-to-br from-[#123d84] via-[#194c9f] to-[#2158b0] p-4 text-white shadow-xl ring-1 ring-[#194c9f]/25">
+                    <div className="mb-3 flex items-center justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">Queue Monitor</p>
+                            <h3 className="text-xl font-extrabold">ສະຖານະຄິວປະຈຸບັນ</h3>
+                        </div>
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/40 bg-emerald-400/15 px-2.5 py-1 text-xs font-bold text-emerald-100">
+                            <span className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-300" />
+                            Live
+                        </span>
+                    </div>
+
+                    {/* ສະແດງຄິວທີ່ກຳລັງເອີ້ນ ແລະ ຄິວຕໍ່ໄປເພື່ອໃຫ້ລູກຄ້າຕິດຕາມໄດ້ງ່າຍ */}
+                    <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-3 backdrop-blur-sm">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-white/70">ກຳລັງເອີ້ນ</p>
+                        <p className={`mt-1 text-4xl font-black tracking-wide ${queueFlow?.is_called ? 'text-[#ffe082]' : 'text-white'}`}>
+                            {formatQueueNoDisplay(queueFlow?.now_serving) || '—'}
+                        </p>
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-white/15 bg-white/5 p-3">
+                        <p className="mb-2 text-sm font-semibold text-white/90">ຄິວຖັດໄປ</p>
+                        <div className="flex gap-2 overflow-x-auto pb-1">
+                            {(queueFlow?.up_next ?? []).length > 0 ? (
+                                (queueFlow.up_next ?? []).map((queueNo) => (
+                                    <span
+                                        key={queueNo}
+                                        className="inline-flex shrink-0 rounded-lg border border-white/30 bg-white/95 px-3 py-1.5 text-sm font-extrabold text-[#194c9f] shadow-sm"
+                                    >
+                                        {formatQueueNoDisplay(queueNo)}
+                                    </span>
+                                ))
+                            ) : (
+                                <span className="text-sm text-white/70">ຍັງບໍ່ມີຄິວຕໍ່ໄປ</span>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-3 rounded-xl border border-white/15 bg-white/10 px-3 py-3 backdrop-blur-sm">
+                        <p className="text-sm font-semibold text-white">
+                            {typeof queueFlow?.ahead_of_you === 'number'
+                                ? `ອີກ ${queueFlow.ahead_of_you} ຄິວ ຈຶ່ງຈະເຖິງຄິວຂອງທ່ານ`
+                                : 'ຍັງບໍ່ມີຄິວຂອງທ່ານໃນລະບົບ'}
+                        </p>
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/25">
+                            <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                    queueFlow?.is_called
+                                        ? 'bg-gradient-to-r from-[#ffe082] to-[#e8c547]'
+                                        : 'bg-gradient-to-r from-white to-[#cfe0ff]'
+                                }`}
+                                style={{ width: `${Math.max(0, Math.min(100, Number(queueFlow?.progress_pct ?? 0)))}%` }}
+                            />
+                        </div>
+                    </div>
+                </section>
+
                 <section className="space-y-2">
                     <h2 className="text-2xl font-extrabold text-slate-900">ປະຫວັດການຈອງຄິວ</h2>
+                    <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
                     {history.map((row) => (
                         <article
                             key={row.id}
@@ -457,6 +519,12 @@ export default function ReservePage({
                             </div>
                         </article>
                     ))}
+                    {history.length === 0 && (
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-sm text-slate-500">
+                            ຍັງບໍ່ມີປະຫວັດການຈອງຄິວ
+                        </div>
+                    )}
+                    </div>
                 </section>
             </div>
 

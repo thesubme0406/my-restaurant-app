@@ -208,7 +208,7 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                     <hr />
                     <p><strong>Payment ID:</strong> ${row.id}</p>
                     <p><strong>Service ID:</strong> ${row.service_id}</p>
-                    <p><strong>Staff ID:</strong> ${row.staff_id}</p>
+                    <p><strong>Staff:</strong> ${row.staff_name ?? '-'}</p>
                     <p><strong>Customer:</strong> ${row.customer_name ?? '-'}</p>
                     <p><strong>Table:</strong> ${row.table_no ?? '-'}</p>
                     <p><strong>Guests:</strong> ${row.guest_count ?? 0}</p>
@@ -311,7 +311,7 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                                 {row.customer_name}
                                             </p>
                                             <p className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-slate-500">
-                                                #{row.service_id} · {row.guest_count} ຄົນ
+                                                ຄິວ {row.queue_no ?? '—'} · #{row.service_id} · {row.guest_count} ຄົນ
                                             </p>
                                             <p className="mt-1 text-xs font-bold text-slate-900">
                                                 {formatAmount(row.total_amount)}{' '}
@@ -386,7 +386,7 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                     <tr>
                                         <th className="px-3 py-2 text-left font-bold">Payment ID</th>
                                         <th className="px-3 py-2 text-left font-bold">ລະຫັດບໍລິການ</th>
-                                        <th className="px-3 py-2 text-left font-bold">ລະຫັດພະນັກງານ</th>
+                                        <th className="px-3 py-2 text-left font-bold">ພະນັກງານ</th>
                                         <th className="px-3 py-2 text-left font-bold">ໂຕະ</th>
                                         <th className="px-3 py-2 text-left font-bold">ຍອດລວມ</th>
                                         <th className="px-3 py-2 text-left font-bold">ວິທີຊຳລະ</th>
@@ -402,7 +402,7 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                             <td className="px-3 py-2 font-semibold" style={{ color: primary }}>
                                                 {row.service_id}
                                             </td>
-                                            <td className="px-3 py-2">{row.staff_id}</td>
+                                            <td className="px-3 py-2">{row.staff_name ?? '—'}</td>
                                             <td className="px-3 py-2 font-semibold" style={{ color: primary }}>
                                                 {row.table_no}
                                             </td>
@@ -471,7 +471,7 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                     Check Out — ໂຕະ {checkoutRow.table_no}
                                 </h3>
                                 <p className="mt-1 text-sm text-slate-600">
-                                    {checkoutRow.customer_name} · ບໍລິການ #{checkoutRow.service_id}
+                                    {checkoutRow.customer_name} · ຄິວ {checkoutRow.queue_no ?? '—'} · ບໍລິການ #{checkoutRow.service_id}
                                 </p>
                             </div>
 
@@ -487,6 +487,12 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                         <span className="font-bold text-slate-600">ໂຕະ:</span>{' '}
                                         <span className="font-semibold" style={{ color: primary }}>
                                             {checkoutRow.table_no}
+                                        </span>
+                                    </p>
+                                    <p>
+                                        <span className="font-bold text-slate-600">ຄິວ:</span>{' '}
+                                        <span className="font-semibold" style={{ color: primary }}>
+                                            {checkoutRow.queue_no ?? '—'}
                                         </span>
                                     </p>
                                     <p>
