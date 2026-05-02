@@ -37,51 +37,76 @@ class ReportController extends Controller
         ];
     }
 
-    public function index(Request $request): Response
+    /**
+     * ອ່ານພາຣາມິເຕີກັ່ນຕອງລາຍງານຈາກ URL ແລະ ບັງຄັບປະເພດທີ່ອະນຸຍາດເທົ່ານັ້ນ.
+     *
+     * @return array{
+     *     type: string,
+     *     from: string,
+     *     to: string,
+     *     status_filter: string,
+     *     category_id: string,
+     *     payment_method: string,
+     *     tier_id: string,
+     *     queue_status: string,
+     *     search_query: string,
+     *     purchase_status: string,
+     *     supplier_id: string
+     * }
+     */
+    private function parseReportQuery(Request $request): array
     {
         $type = (string) $request->query('type', 'income');
-        $from = (string) $request->query('from', Carbon::now()->startOfMonth()->toDateString());
-        $to = (string) $request->query('to', Carbon::now()->toDateString());
-        $statusFilter = (string) $request->query('status_filter', 'all');
-        $categoryId = (string) $request->query('category_id', 'all');
-        $paymentMethod = (string) $request->query('payment_method', 'all');
-        $tierId = (string) $request->query('tier_id', 'all');
-        $queueStatus = (string) $request->query('queue_status', 'all');
-        $searchQuery = (string) $request->query('search_query', '');
-        $purchaseStatus = (string) $request->query('purchase_status', 'all');
-        $supplierId = (string) $request->query('supplier_id', 'all');
-
         if (! in_array($type, $this->allowedTypes(), true)) {
             $type = 'income';
         }
 
+        return [
+            'type' => $type,
+            'from' => (string) $request->query('from', Carbon::now()->startOfMonth()->toDateString()),
+            'to' => (string) $request->query('to', Carbon::now()->toDateString()),
+            'status_filter' => (string) $request->query('status_filter', 'all'),
+            'category_id' => (string) $request->query('category_id', 'all'),
+            'payment_method' => (string) $request->query('payment_method', 'all'),
+            'tier_id' => (string) $request->query('tier_id', 'all'),
+            'queue_status' => (string) $request->query('queue_status', 'all'),
+            'search_query' => (string) $request->query('search_query', ''),
+            'purchase_status' => (string) $request->query('purchase_status', 'all'),
+            'supplier_id' => (string) $request->query('supplier_id', 'all'),
+        ];
+    }
+
+    public function index(Request $request): Response
+    {
+        $q = $this->parseReportQuery($request);
+
         $payload = $this->reportPayload(
-            $type,
-            $from,
-            $to,
-            $statusFilter,
-            $categoryId,
-            $paymentMethod,
-            $tierId,
-            $queueStatus,
-            $searchQuery,
-            $purchaseStatus,
-            $supplierId,
+            $q['type'],
+            $q['from'],
+            $q['to'],
+            $q['status_filter'],
+            $q['category_id'],
+            $q['payment_method'],
+            $q['tier_id'],
+            $q['queue_status'],
+            $q['search_query'],
+            $q['purchase_status'],
+            $q['supplier_id'],
             ''
         );
 
         return Inertia::render('Admin/Reports', [
-            'initialType' => $type,
-            'initialFrom' => $from,
-            'initialTo' => $to,
-            'initialStatusFilter' => $statusFilter,
-            'initialCategoryId' => $categoryId,
-            'initialPaymentMethod' => $paymentMethod,
-            'initialTierId' => $tierId,
-            'initialQueueStatus' => $queueStatus,
-            'initialSearchQuery' => $searchQuery,
-            'initialPurchaseStatus' => $purchaseStatus,
-            'initialSupplierId' => $supplierId,
+            'initialType' => $q['type'],
+            'initialFrom' => $q['from'],
+            'initialTo' => $q['to'],
+            'initialStatusFilter' => $q['status_filter'],
+            'initialCategoryId' => $q['category_id'],
+            'initialPaymentMethod' => $q['payment_method'],
+            'initialTierId' => $q['tier_id'],
+            'initialQueueStatus' => $q['queue_status'],
+            'initialSearchQuery' => $q['search_query'],
+            'initialPurchaseStatus' => $q['purchase_status'],
+            'initialSupplierId' => $q['supplier_id'],
             'menuCategories' => $this->menuCategoryOptions(),
             'buffetTiers' => $this->buffetTierOptions(),
             'supplierOptions' => $this->supplierOptions(),
@@ -92,39 +117,27 @@ class ReportController extends Controller
 
     public function data(Request $request): JsonResponse
     {
-        $type = (string) $request->query('type', 'income');
-        $from = (string) $request->query('from', Carbon::now()->startOfMonth()->toDateString());
-        $to = (string) $request->query('to', Carbon::now()->toDateString());
-        $statusFilter = (string) $request->query('status_filter', 'all');
-        $categoryId = (string) $request->query('category_id', 'all');
-        $paymentMethod = (string) $request->query('payment_method', 'all');
-        $tierId = (string) $request->query('tier_id', 'all');
-        $queueStatus = (string) $request->query('queue_status', 'all');
-        $searchQuery = (string) $request->query('search_query', '');
-        $purchaseStatus = (string) $request->query('purchase_status', 'all');
-        $supplierId = (string) $request->query('supplier_id', 'all');
-
-        if (! in_array($type, $this->allowedTypes(), true)) {
-            $type = 'income';
-        }
+        $q = $this->parseReportQuery($request);
 
         return response()->json($this->reportPayload(
-            $type,
-            $from,
-            $to,
-            $statusFilter,
-            $categoryId,
-            $paymentMethod,
-            $tierId,
-            $queueStatus,
-            $searchQuery,
-            $purchaseStatus,
-            $supplierId,
+            $q['type'],
+            $q['from'],
+            $q['to'],
+            $q['status_filter'],
+            $q['category_id'],
+            $q['payment_method'],
+            $q['tier_id'],
+            $q['queue_status'],
+            $q['search_query'],
+            $q['purchase_status'],
+            $q['supplier_id'],
             ''
         ));
     }
 
     /**
+     * ກະຈາຍໄປຟັງຊັນສ້າງ payload ຕາມປະເພດລາຍງານ — ຜົນລັບເປັນ { rows, summary } ທຸກປະເພດ.
+     *
      * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
      */
     private function reportPayload(
@@ -179,13 +192,11 @@ class ReportController extends Controller
     }
 
     /**
-     * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
-     */
-    /**
-     * ລາຍງານລາຍຮັບ — ກັ່ນຕອງຕາມປະເພດການຊຳລະ ແລະ ບຸບເຟ້; ສະຫຼຸບຍອດລວມກົງກັບແຖວທີ່ກັ່ນແລ້ວ
+     * ລາຍງານລາຍຮັບ — ກັ່ນຕອງຕາມປະເພດການຊຳລະ ແລະ ບຸບເຟ້; ສະຫຼຸບຍອດລວມກົງກັບແຖວທີ່ກັ່ນແລ້ວ.
      *
      * @param  'all'|'cash'|'transfer'  $paymentMethod
      * @param  'all'|numeric-string  $tierId
+     * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
      */
     private function incomePayload(string $from, string $to, string $paymentMethod = 'all', string $tierId = 'all'): array
     {
@@ -248,12 +259,10 @@ class ReportController extends Controller
     }
 
     /**
-     * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
-     */
-    /**
-     * ສະຫຼຸບສະຖິຕິຄິວແຍກຕາມສະຖານະ — ແຕ່ລະຄິວນັບ 1 ຄັ້ງ; ມື້ລວມຕາມວັນທີເຂົ້າຄິວ (queued_at ຫຼື expected_time)
+     * ສະຫຼຸບສະຖິຕິຄິວແຍກຕາມສະຖານະ — ແຕ່ລະຄິວນັບ 1 ຄັ້ງ; ມື້ອ້າງອີງຕາມ queue_day / queued_at / expected_time.
      *
      * @param  'all'|'completed'|'skipped'|'cancelled'|'other'  $queueStatusFilter
+     * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
      */
     private function queueStatisticsPayload(string $from, string $to, string $queueStatusFilter = 'all'): array
     {
@@ -796,6 +805,7 @@ class ReportController extends Controller
         $tierNorm = ($tierId !== '' && $tierId !== 'all' && is_numeric($tierId)) ? (int) $tierId : null;
         $statusNorm = in_array($servicePaymentStatus, ['all', 'paid', 'unpaid'], true) ? $servicePaymentStatus : 'all';
 
+        // Eager load ຄົບໃນຄັ້ງດຽວເພື່ອບໍ່ໃຊ້ N+1 ຕອນແປງແຖວ.
         $rows = Service::query()
             ->with([
                 'booking.customer',

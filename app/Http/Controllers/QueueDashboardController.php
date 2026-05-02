@@ -7,7 +7,6 @@ use App\Models\BuffetTier;
 use App\Models\Customer;
 use App\Models\Service;
 use App\Models\Table;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,12 +23,6 @@ class QueueDashboardController extends Controller
 
     /** @var array<int, Service>|null ບໍລິການ in_service ຍັງບໍ່ຊຳລະ ຕໍ່ໂຕະ (ແຄຊຕໍ່ request). */
     private ?array $activeUnpaidServiceMapCache = null;
-
-    // ສະຖານະທີ່ນັບເປັນ «ລໍຖ້າ» ໃນຄິວ
-    private function waitlistStatuses(): array
-    {
-        return ['waiting', 'pending', 'confirmed'];
-    }
 
     /**
      * ແຜ່ງໂຕະ → ບໍລິການທີ່ຍັງເປີດຢູ່ (in_service, ຍັງບໍ່ມີ payment).
@@ -89,32 +82,10 @@ class QueueDashboardController extends Controller
             'availableTables' => (int) $vacantReadyQuery->count(),
             'occupiedTables' => count($occupiedIds),
             // ນັບຄິວລໍຖ້າ: ແຕ່ລະແຖວ = 1 ຄິວ (ບໍ່ຊ້ຳກັບຄິວອື່ນ).
-            'waitingQueue' => (int) $this->waitingBookingsForDashboard()->count(),
+            'waitingQueue' => (int) Booking::query()->dashboardWaitingToday()->count(),
             // ນັບຈຳນວນຄິວທີ່ຖືກຂ້າມ: ແຕ່ລະແຖວ = 1 ຄິວ (ບໍ່ນັບຕາມ skip_count ຫຼາຍຄັ້ງ).
-            'skippedQueue' => (int) $this->skippedBookingsForDashboard()->count(),
+            'skippedQueue' => (int) Booking::query()->dashboardSkippedToday()->count(),
         ];
-    }
-
-    /** ຄິວລໍຖ້າໃນແຜງ (ສະຖານະລໍຖ້າ + ຍັງບໍ່ມີໂຕະ) — ໃຊ້ຮ່ວມກັນທັງນັບແລະລາຍການເພື່ອບໍ່ຊ້ຳ/ບໍ່ຂາດ. */
-    private function waitingBookingsForDashboard(): Builder
-    {
-        $today = Carbon::today()->toDateString();
-
-        return Booking::query()
-            ->whereDate('expected_time', $today)
-            ->whereIn('status', $this->waitlistStatuses())
-            ->whereNull('table_id');
-    }
-
-    /** ຄິວທີ່ຂ້າມແລ້ວໃນແຜງ — ແຖວດຽວຕໍ່ຄົນ, ບໍ່ນັບຫຼາຍຄັ້ງຈາກ skip_count. */
-    private function skippedBookingsForDashboard(): Builder
-    {
-        $today = Carbon::today()->toDateString();
-
-        return Booking::query()
-            ->whereDate('expected_time', $today)
-            ->where('status', 'skipped')
-            ->whereNull('table_id');
     }
 
     // ໂຕະຈັດຕາມໂຊນ — ສີແດງ/ຂຽວ/ເທົາ: maintenance=readiness not_ready, ມີລູກຄ້າ=ມີ in_service ບໍ່ຊຳລະ, ຫວ່າງ=ທີ່ເຫຼືອ
@@ -189,20 +160,19 @@ class QueueDashboardController extends Controller
     // ຄິວລໍຖ້າ (ຍັງບໍ່ມີໂຕະ) — ລຽງ FIFO: ເກົ່າສຸດຢູ່ເທິງ, ໃໝ່ສຸດຢູ່ລຸ່ມ (queued_at ↑, id ↑)
     private function waitingQueuePayload(): array
     {
-        return $this->waitingBookingsForDashboard()
-            ->with(['customer', 'buffetTier'])
-            ->orderByRaw('case when queued_at is null then 1 else 0 end')
-            ->orderBy('queued_at')
-            ->orderBy('id')
-            ->get()
-            ->map(fn (Booking $b): array => $this->queueEntry($b))
-            ->all();
+        return $this->orderedDashboardQueuePayload(Booking::query()->dashboardWaitingToday());
     }
 
     // ຄິວທີ່ຂ້າມແລ້ວ — FIFO ດຽວກັບຄິວລໍຖ້າ (ເກົ່າສຸດເທິງ)
     private function skippedQueuePayload(): array
     {
-        return $this->skippedBookingsForDashboard()
+        return $this->orderedDashboardQueuePayload(Booking::query()->dashboardSkippedToday());
+    }
+
+    /** ລາຍການຄິວໃນແຜງ: eager load + ລຽງ queued_at/id ກົງກັນທຸກປະເພດຄິວ. */
+    private function orderedDashboardQueuePayload(Builder $bookingsQuery): array
+    {
+        return $bookingsQuery
             ->with(['customer', 'buffetTier'])
             ->orderByRaw('case when queued_at is null then 1 else 0 end')
             ->orderBy('queued_at')
@@ -431,7 +401,7 @@ class QueueDashboardController extends Controller
             ]);
         }
 
-        if (! in_array($booking->status, ['waiting', 'pending', 'confirmed', 'skipped'], true)) {
+        if (! in_array($booking->status, [...Booking::STATUSES_WAITLIST, 'skipped'], true)) {
             throw ValidationException::withMessages([
                 'booking' => 'ຄິວນີ້ບໍ່ສາມາດຂ້າມໄດ້.',
             ]);
@@ -446,7 +416,7 @@ class QueueDashboardController extends Controller
             ]);
         }
 
-        if (! in_array($booking->status, ['waiting', 'pending', 'confirmed', 'skipped'], true)) {
+        if (! in_array($booking->status, [...Booking::STATUSES_WAITLIST, 'skipped'], true)) {
             throw ValidationException::withMessages([
                 'booking' => 'ຄິວນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.',
             ]);
@@ -462,7 +432,7 @@ class QueueDashboardController extends Controller
             ]);
         }
 
-        if (! in_array($booking->status, [...$this->waitlistStatuses(), 'skipped'], true)) {
+        if (! in_array($booking->status, [...Booking::STATUSES_WAITLIST, 'skipped'], true)) {
             throw ValidationException::withMessages([
                 'booking' => 'ຄິວນີ້ບໍ່ສາມາດດຳເນີນການໄດ້.',
             ]);

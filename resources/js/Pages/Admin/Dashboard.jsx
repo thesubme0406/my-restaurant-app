@@ -442,8 +442,7 @@ export default function AdminDashboard({ stats, zones, queue, skippedQueue, buff
                 setShowAddQueue(false);
                 resetPhoneLookupState();
                 const empty = emptyAddQueueForm(buffetTiers);
-                // Inertia updates form defaults to submitted values on success; setDefaults
-                // first so that does not run, then clear fields for the next add.
+                // ຫຼັງບັນທຶກສຳເລັດ Inertia ຈະດຶງຄ່າຟອມເປັນຄ່າເລີ່ມ — setDefaults ກ່ອນແລ້ວ reset ຟອມເພື່ອເພີ່ມຄິວຄັ້ງໃໝ່.
                 addForm.setDefaults(empty);
                 addForm.setData(empty);
             },

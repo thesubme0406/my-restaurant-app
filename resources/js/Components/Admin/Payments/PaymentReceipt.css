@@ -1,4 +1,4 @@
-/* Narrow thermal-style receipt; print uses 80mm paper width */
+/* Narrow thermal-style receipt; print uses 80mm paper width — ຂໍ້ຄວາມລາວທັງໃບໃຊ້ Noto Sans Lao ບໍ່ແຍກຟອນຕົວເລກ */
 .payment-receipt {
     box-sizing: border-box;
     width: 100%;
@@ -14,8 +14,9 @@
     print-color-adjust: exact;
 }
 
+/* ຕົວເລກ + ກີບ ຢູ່ຊ່ອງດຽວກັນ — ບໍ່ໃຊ້ Inter ເພາະຈະເຮັດໃຫ້ຕົວອັກສອນລາວໃຊ້ fallback ຄນແຕກຕ່າງ */
 .payment-receipt .nums {
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-family: 'Noto Sans Lao', ui-sans-serif, system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
 }
 

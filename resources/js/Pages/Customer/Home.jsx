@@ -8,6 +8,7 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { formatAmount } from '@/utils/formatAmount';
+import { oshineiCtaPressable, oshineiInline } from '@/constants/oshineiTheme';
 
 // ຈັດຮູບແບບລາຄາໃຫ້ອ່ານງ່າຍ
 function formatPriceDigits(price) {
@@ -22,7 +23,7 @@ function BuffetTierCard({ tier }) {
     return (
         <Link
             href={`${route('customer.menu')}?tier=${encodeURIComponent(String(tier.id))}`}
-            className="group relative aspect-[5/3] w-[min(88vw,340px)] shrink-0 snap-center overflow-hidden rounded-2xl shadow-lg ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#194c9f] focus-visible:ring-offset-2 lg:w-[360px]"
+            className="group relative aspect-[5/3] w-[min(88vw,340px)] shrink-0 snap-center overflow-hidden rounded-2xl shadow-lg ring-1 ring-white/10 transition hover:-translate-y-0.5 hover:shadow-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-oshinei-navy focus-visible:ring-offset-2 lg:w-[360px]"
             aria-label={`${tier.tier_name} buffet`}
         >
             {tier.image_url ? (
@@ -135,34 +136,14 @@ export default function CustomerHomePage({
 
             <div className="relative isolate space-y-6 py-2 lg:space-y-10 lg:py-6">
                 {/* ພື້ນຫຼັງລາຍບາງໆ ແຕ່ເຫັນໄດ້ຊັດ */}
-                <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 -z-10 rounded-3xl"
-                    style={{
-                        background:
-                            'linear-gradient(180deg, rgba(25,76,159,0.08) 0%, rgba(25,76,159,0.02) 50%, rgba(25,76,159,0.08) 100%)',
-                    }}
-                />
+                <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 rounded-3xl" style={oshineiInline.heroBackdrop} />
                 <div
                     aria-hidden
                     className="pointer-events-none absolute inset-0 -z-10 rounded-3xl opacity-[0.12]"
-                    style={{
-                        backgroundImage: "url('/images/sushi.png')",
-                        backgroundRepeat: 'repeat',
-                        backgroundSize: '190px',
-                        backgroundPosition: 'center',
-                    }}
+                    style={oshineiInline.sushiPattern}
                 />
-                <section className="relative overflow-hidden rounded-2xl bg-white/95 shadow-md ring-1 ring-[#194c9f]/10">
-                    <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-0 opacity-[0.08]"
-                        style={{
-                            backgroundImage:
-                                "radial-gradient(circle at 12% 18%, rgba(25,76,159,0.18) 0, rgba(25,76,159,0.18) 2px, transparent 2px), radial-gradient(circle at 84% 82%, rgba(25,76,159,0.14) 0, rgba(25,76,159,0.14) 2px, transparent 2px)",
-                            backgroundSize: '34px 34px, 38px 38px',
-                        }}
-                    />
+                <section className="relative overflow-hidden rounded-2xl bg-white/95 shadow-md ring-1 ring-oshinei-navy/10">
+                    <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.08]" style={oshineiInline.heroDots} />
                     <div className="relative h-64 lg:h-[500px]">
                         <img
                             src="/images/foodshowing.jpg?v=1"
@@ -176,7 +157,7 @@ export default function CustomerHomePage({
                                 <div>
                                     <p className="text-base font-extrabold text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.55)] lg:text-2xl">
                                         ຄິວລໍຖ້າປັດຈຸບັນ{' '}
-                                        <span className="text-3xl text-[#7dc6ff] lg:text-5xl">{String(waitingQueueCount).padStart(3, '0')}</span>{' '}
+                                        <span className="text-3xl text-oshinei-ice lg:text-5xl">{String(waitingQueueCount).padStart(3, '0')}</span>{' '}
                                         ຄິວ
                                     </p>
                                     {nowLabel ? (
@@ -194,7 +175,7 @@ export default function CustomerHomePage({
                                 <button
                                     type="button"
                                     onClick={promptLoginForBooking}
-                                    className="inline-flex h-10 min-w-[118px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-[#2a63bb] to-[#174896] px-4 text-2xl font-extrabold leading-none text-white shadow-[0_10px_24px_rgba(25,76,159,0.42)] ring-1 ring-white/35 transition hover:-translate-y-0.5 hover:brightness-105 sm:h-11 sm:min-w-[130px] sm:px-5 sm:text-[2rem]"
+                                    className={`inline-flex h-10 min-w-[118px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-4 text-2xl font-extrabold leading-none text-white shadow-[0_10px_24px_rgba(25,76,159,0.42)] ring-1 ring-white/35 sm:h-11 sm:min-w-[130px] sm:px-5 sm:text-[2rem] ${oshineiCtaPressable}`}
                                 >
                                     ຈອງຄິວ
                                 </button>
@@ -203,28 +184,20 @@ export default function CustomerHomePage({
                     </div>
                 </section>
 
-                <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white via-white to-[#eef5ff] p-4 shadow-xl ring-1 ring-[#194c9f]/15 lg:p-6">
+                <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white via-white to-[#eef5ff] p-4 shadow-xl ring-1 ring-oshinei-navy/15 lg:p-6">
+                    <div aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl opacity-[0.1]" style={oshineiInline.menuSectionGrid} />
                     <div
                         aria-hidden
-                        className="pointer-events-none absolute inset-0 rounded-2xl opacity-[0.1]"
-                        style={{
-                            backgroundImage:
-                                "linear-gradient(135deg, rgba(25,76,159,0.12) 0, rgba(25,76,159,0.12) 1px, transparent 1px, transparent 18px)",
-                            backgroundSize: '18px 18px',
-                        }}
-                    />
-                    <div
-                        aria-hidden
-                        className="pointer-events-none absolute -left-8 top-6 h-24 w-24 rounded-full bg-[#194c9f]/10 blur-2xl"
+                        className="pointer-events-none absolute -left-8 top-6 h-24 w-24 rounded-full bg-oshinei-navy/10 blur-2xl"
                     />
                     <div className="relative z-10 mb-5 flex items-center justify-between gap-3">
                         <div>
-                            <p className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-[#194c9f]/70">Oshinei Signature</p>
-                            <h2 className="text-2xl font-extrabold text-[#194c9f] lg:text-3xl">ເມນູບຸບເຟ່</h2>
+                            <p className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-oshinei-navy/70">Oshinei Signature</p>
+                            <h2 className="text-2xl font-extrabold text-oshinei-navy lg:text-3xl">ເມນູບຸບເຟ່</h2>
                         </div>
                         <Link
                             href={route('customer.menu')}
-                            className="inline-flex h-10 shrink-0 items-center rounded-xl bg-gradient-to-b from-[#2a63bb] to-[#174896] px-4 text-sm font-bold text-white shadow-[0_8px_18px_rgba(25,76,159,0.35)] ring-1 ring-white/30 transition hover:-translate-y-0.5 hover:brightness-105"
+                            className={`inline-flex h-10 shrink-0 items-center rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-4 text-sm font-bold text-white shadow-[0_8px_18px_rgba(25,76,159,0.35)] ring-1 ring-white/30 ${oshineiCtaPressable}`}
                         >
                             ເບິ່ງທັງໝົດ
                             <span aria-hidden className="ml-1 text-xs font-black">
@@ -256,24 +229,16 @@ export default function CustomerHomePage({
                     )}
                 </section>
 
-                <section className="relative overflow-hidden rounded-2xl bg-white/95 p-4 shadow-md ring-1 ring-[#194c9f]/10 lg:p-6 lg:py-12">
-                    <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-0 rounded-2xl opacity-[0.08]"
-                        style={{
-                            backgroundImage:
-                                "radial-gradient(circle at 8px 8px, rgba(25,76,159,0.2) 1.2px, transparent 1.2px)",
-                            backgroundSize: '20px 20px',
-                        }}
-                    />
-                    <h2 className="mb-4 text-xl font-extrabold tracking-tight text-[#194c9f] lg:text-2xl">
+                <section className="relative overflow-hidden rounded-2xl bg-white/95 p-4 shadow-md ring-1 ring-oshinei-navy/10 lg:p-6 lg:py-12">
+                    <div aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl opacity-[0.08]" style={oshineiInline.promoDots} />
+                    <h2 className="mb-4 text-xl font-extrabold tracking-tight text-oshinei-navy lg:text-2xl">
                         ໂປຣໂມຊັ່ນ ແລະ ແຈ້ງການ
                     </h2>
                     <div className="relative">
-                        <button className="promo-prev absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gradient-to-b from-white to-[#e9f1ff] p-2 text-[#194c9f] shadow-[0_10px_24px_rgba(25,76,159,0.25)] ring-1 ring-[#194c9f]/25 transition hover:scale-105">
+                        <button className="promo-prev absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gradient-to-b from-white to-[#e9f1ff] p-2 text-oshinei-navy shadow-[0_10px_24px_rgba(25,76,159,0.25)] ring-1 ring-oshinei-navy/25 transition hover:scale-105">
                             <ChevronLeft className="h-5 w-5" />
                         </button>
-                        <button className="promo-next absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gradient-to-b from-white to-[#e9f1ff] p-2 text-[#194c9f] shadow-[0_10px_24px_rgba(25,76,159,0.25)] ring-1 ring-[#194c9f]/25 transition hover:scale-105">
+                        <button className="promo-next absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-gradient-to-b from-white to-[#e9f1ff] p-2 text-oshinei-navy shadow-[0_10px_24px_rgba(25,76,159,0.25)] ring-1 ring-oshinei-navy/25 transition hover:scale-105">
                             <ChevronRight className="h-5 w-5" />
                         </button>
 
@@ -283,13 +248,13 @@ export default function CustomerHomePage({
                             pagination={{ clickable: true }}
                             autoplay={{ delay: 3200 }}
                             loop
-                            className="[&_.swiper-pagination-bullet]:h-2 [&_.swiper-pagination-bullet]:w-2 [&_.swiper-pagination-bullet]:bg-white/80 [&_.swiper-pagination-bullet-active]:bg-[#194c9f]"
+                            className="[&_.swiper-pagination-bullet]:h-2 [&_.swiper-pagination-bullet]:w-2 [&_.swiper-pagination-bullet]:bg-white/80 [&_.swiper-pagination-bullet-active]:bg-oshinei-navy"
                         >
                             {promoBanners.map((img, idx) => (
                                 <SwiperSlide key={`promo-${idx}`}>
                                     <Link
                                         href={route('customer.news')}
-                                        className="block h-52 min-h-[360px] overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#194c9f] focus-visible:ring-offset-2 lg:min-h-[480px]"
+                                        className="block h-52 min-h-[360px] overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-oshinei-navy focus-visible:ring-offset-2 lg:min-h-[480px]"
                                     >
                                         <img src={img} alt={`Promotion ${idx + 1}`} className="h-full w-full object-cover object-center" />
                                     </Link>
@@ -300,25 +265,18 @@ export default function CustomerHomePage({
                     <div className="mt-3 text-center">
                         <Link
                             href={route('customer.news')}
-                            className="inline-flex rounded-xl bg-gradient-to-b from-[#2a63bb] to-[#174896] px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(25,76,159,0.3)] ring-1 ring-white/35 transition hover:-translate-y-0.5 hover:brightness-105"
+                            className={`inline-flex rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(25,76,159,0.3)] ring-1 ring-white/35 ${oshineiCtaPressable}`}
                         >
                             ລາຍລະອຽດເພີ່ມເຕີມ
                         </Link>
                     </div>
                 </section>
 
-                <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-white to-[#edf4ff] p-4 shadow-xl ring-1 ring-[#194c9f]/15 lg:p-7">
+                <section className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-white via-white to-[#edf4ff] p-4 shadow-xl ring-1 ring-oshinei-navy/15 lg:p-7">
+                    <div aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl opacity-[0.12]" style={oshineiInline.bookingStripes} />
                     <div
                         aria-hidden
-                        className="pointer-events-none absolute inset-0 rounded-2xl opacity-[0.12]"
-                        style={{
-                            backgroundImage:
-                                "repeating-linear-gradient(-35deg, rgba(25,76,159,0.16) 0, rgba(25,76,159,0.16) 1px, transparent 1px, transparent 14px)",
-                        }}
-                    />
-                    <div
-                        aria-hidden
-                        className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full bg-[#194c9f]/10 blur-2xl"
+                        className="pointer-events-none absolute -right-8 -top-8 h-36 w-36 rounded-full bg-oshinei-navy/10 blur-2xl"
                     />
                     <div
                         aria-hidden
@@ -326,14 +284,14 @@ export default function CustomerHomePage({
                     />
                     <div className="relative z-10 flex items-end justify-between gap-4">
                         <div className="relative z-10 pl-2 sm:pl-4 lg:pl-8">
-                            <h3 className="text-4xl font-extrabold leading-none tracking-tight text-[#194c9f] lg:text-6xl">ຈອງກ່ອນ</h3>
-                            <h3 className="text-4xl font-extrabold leading-none tracking-tight text-[#194c9f] lg:text-6xl">ແຊບກ່ອນ</h3>
+                            <h3 className="text-4xl font-extrabold leading-none tracking-tight text-oshinei-navy lg:text-6xl">ຈອງກ່ອນ</h3>
+                            <h3 className="text-4xl font-extrabold leading-none tracking-tight text-oshinei-navy lg:text-6xl">ແຊບກ່ອນ</h3>
                             <p className="mt-3 max-w-md text-sm font-medium text-slate-600">ສະແກນຈອງຄິວໄວ້ລ່ວງໜ້າໄດ້ທຸກມື້</p>
                         </div>
                         <button
                             type="button"
                             onClick={promptLoginForBooking}
-                            className="inline-flex h-14 items-center rounded-xl bg-gradient-to-b from-[#2457ac] to-[#123a80] px-7 text-xl font-extrabold text-white shadow-[0_10px_26px_rgba(25,76,159,0.4)] ring-1 ring-white/35 transition hover:-translate-y-0.5 hover:brightness-105"
+                            className={`inline-flex h-14 items-center rounded-xl bg-gradient-to-b from-oshinei-cta-strong-from to-oshinei-cta-strong-to px-7 text-xl font-extrabold text-white shadow-[0_10px_26px_rgba(25,76,159,0.4)] ring-1 ring-white/35 ${oshineiCtaPressable}`}
                         >
                             ຈອງຄິວ
                         </button>
@@ -343,7 +301,7 @@ export default function CustomerHomePage({
 
             {loginPromptOpen ? (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/45 px-4">
-                    <div className="w-full max-w-sm rounded-2xl border border-white/25 bg-[#194c9f] p-5 text-white shadow-2xl">
+                    <div className="w-full max-w-sm rounded-2xl border border-white/25 bg-oshinei-navy p-5 text-white shadow-2xl">
                         <h3 className="text-lg font-bold">ຕ້ອງການເຂົ້າລະບົບ</h3>
                         <p className="mt-2 text-sm text-white/90">
                             ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນເພື່ອທຳການຈອງຄິວ
@@ -358,7 +316,7 @@ export default function CustomerHomePage({
                             </button>
                             <Link
                                 href={loginHref}
-                                className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-[#194c9f] shadow-lg transition hover:-translate-y-0.5 hover:brightness-95"
+                                className="rounded-xl bg-white px-3 py-2 text-sm font-semibold text-oshinei-navy shadow-lg transition hover:-translate-y-0.5 hover:brightness-95"
                             >
                                 ເຂົ້າສູ່ລະບົບ
                             </Link>

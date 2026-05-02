@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +12,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Booking extends Model
 {
     use HasFactory;
+
+    /** ສະຖານະຄິວລໍຖ້າໂຕະ (ແຜງ walk-in ແລະການຂ້າມ/ຍົກເລີກກ່ອນນັ່ງ) */
+    public const STATUSES_WAITLIST = ['waiting', 'pending', 'confirmed'];
 
     protected $table = 'bookings';
 
@@ -63,5 +68,31 @@ class Booking extends Model
     public function services(): HasMany
     {
         return $this->hasMany(Service::class, 'booking_id');
+    }
+
+    /**
+     * ຄິວລໍຖ້າໃນແຜງມື້ນີ້: ຍັງບໍ່ມີໂຕະ, ສະຖານະລໍຖ້າ — ກອງຕາມ expected_time = ມື້ປັດຈຸບັນ.
+     */
+    public function scopeDashboardWaitingToday(Builder $query): Builder
+    {
+        $today = Carbon::today()->toDateString();
+
+        return $query
+            ->whereDate('expected_time', $today)
+            ->whereIn('status', self::STATUSES_WAITLIST)
+            ->whereNull('table_id');
+    }
+
+    /**
+     * ຄິວຖືກຂ້າມໃນແຜງມື້ນີ້ (ຍັງບໍ່ມີໂຕະ) — ໃຊ້ຮ່ວມກັບລຽງ FIFO ດຽວກັບຄິວລໍຖ້າ.
+     */
+    public function scopeDashboardSkippedToday(Builder $query): Builder
+    {
+        $today = Carbon::today()->toDateString();
+
+        return $query
+            ->whereDate('expected_time', $today)
+            ->where('status', 'skipped')
+            ->whereNull('table_id');
     }
 }

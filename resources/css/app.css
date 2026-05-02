@@ -4,11 +4,18 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ແຖບເລື່ອນຄິວ: ບາງ + ສີຟ້າ #194c9f (ແຜງຄິວ) */
+/* ສີ Navy ຫຼັກຂອງ Oshinei — ໃຊ້ຮ່ວມກັບ Tailwind oshinei-* ແລະ inline rgba(...) */
+:root {
+    --oshinei-navy: #194c9f;
+    --oshinei-navy-dark: #153d82;
+    --oshinei-navy-rgb: 25, 76, 159;
+}
+
+/* ແຖບເລື່ອນຄິວ: ບາງ + ສີຟ້າ Oshinei Navy */
 @layer utilities {
     .queue-scroll-panel {
         scrollbar-width: thin;
-        scrollbar-color: #194c9f rgb(226 232 240);
+        scrollbar-color: var(--oshinei-navy) rgb(226 232 240);
     }
 
     .queue-scroll-panel::-webkit-scrollbar {
@@ -22,11 +29,11 @@
 
     .queue-scroll-panel::-webkit-scrollbar-thumb {
         border-radius: 6px;
-        background: #194c9f;
+        background: var(--oshinei-navy);
     }
 
     .queue-scroll-panel::-webkit-scrollbar-thumb:hover {
-        background: #153d82;
+        background: var(--oshinei-navy-dark);
     }
 }
 
@@ -76,7 +83,7 @@ body,
     }
 
     .report-print-area thead th {
-        background: #194c9f !important;
+        background: var(--oshinei-navy) !important;
         color: #fff !important;
         border: 1px solid #d1d9e6 !important;
         padding: 4px 6px !important;

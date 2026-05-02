@@ -63,7 +63,7 @@ export default function PaymentReceipt({
     const { netBeforeVat, vat, grandTotal } = computeReceiptTotals(subtotal);
 
     return (
-        <article className="payment-receipt" aria-label="ໃບບິນຊຳລະເງິນ">
+        <article className="payment-receipt" lang="lo" aria-label="ໃບບິນຊຳລະເງິນ">
             <div className="payment-receipt__logo-wrap">
                 <img className="payment-receipt__logo" src={logoSrc} alt="" width={80} height={80} />
             </div>

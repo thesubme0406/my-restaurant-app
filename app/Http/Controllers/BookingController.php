@@ -13,11 +13,7 @@ use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
 {
-    /**
-     * Resolve a display name for a phone number from the latest matching booking
-     * (by id) or the customers table. Bookings take precedence when a name exists
-     * so the last-used spelling on file is shown first.
-     */
+    /** ຄົ້ນຊື່ຈາກເບີໂທ — ຄິວຫຼ້າສຸດກ່ອນ, ຫຼັງນັ້ນຕາຕະລາງ customers (ສະກົດຕາມຈອງຫຼ້າສຸດ). */
     public function lookupCustomerByPhone(Request $request): JsonResponse
     {
         $raw = (string) $request->query('phone', '');
@@ -60,6 +56,9 @@ class BookingController extends Controller
         ]);
     }
 
+    /**
+     * ບັນທຶກຈອງຄິວລູກຄ້າ — ເລກຄິວ Qxxx ຕໍ່ມື້ (queue_day) ແບບສະຫຼຸບດຽວກັນທຸກຄົນ; ກັນຊ້ຳດ້ວຍ lock ບັນທຶກ + retry.
+     */
     public function store(Request $request): JsonResponse
     {
         $authCustomer = $request->user('customer');
@@ -77,11 +76,7 @@ class BookingController extends Controller
         $bookingDate = Carbon::parse((string) $validated['booking_date'])->startOfDay();
         $queueDayString = $bookingDate->toDateString();
 
-        /*
-         * Global daily queue numbers (Q001, Q002, …) per dine date (`queue_day` = selected booking_date).
-         * All customers share one sequence for that date only.
-         * Unique index on (queue_day, queue_no) + lockForUpdate + retry prevents duplicates under concurrency.
-         */
+        // ເລກຄິວຕໍ່ມື້ (Q001…) ຮ່ວມກັນທຸກຄົນ — ຊຸດຊ້ຳກັນກັນດ້ວຍ unique (queue_day, queue_no) + lock + retry.
         $booking = null;
         for ($attempt = 1; $attempt <= 25; $attempt++) {
             try {
@@ -178,6 +173,7 @@ class BookingController extends Controller
         ]);
     }
 
+    /** ກວດວ່າເກີດຊ້ຳເລກຄິວຕໍ່ມື້ (ຮອງໃໝ່ໄດ້). */
     private function isDuplicateQueueDayNumber(QueryException $e): bool
     {
         $message = $e->getMessage();
@@ -191,6 +187,7 @@ class BookingController extends Controller
         return ($e->errorInfo[1] ?? null) === 1062;
     }
 
+    /** ຍົກເລີກຄິວກ່ອນນັ່ງໂຕະ — ອະນຸຍາດເຉພາະເຈົ້າຂອງຄິວ. */
     public function cancel(Request $request, Booking $booking): JsonResponse
     {
         $customer = $request->user('customer');

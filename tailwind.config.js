@@ -21,6 +21,17 @@ export default {
                     ...defaultTheme.fontFamily.sans,
                 ],
             },
+            colors: {
+                oshinei: {
+                    navy: '#194c9f',
+                    'navy-dark': '#153d82',
+                    'cta-from': '#2a63bb',
+                    'cta-to': '#174896',
+                    'cta-strong-from': '#2457ac',
+                    'cta-strong-to': '#123a80',
+                    ice: '#7dc6ff',
+                },
+            },
         },
     },
 

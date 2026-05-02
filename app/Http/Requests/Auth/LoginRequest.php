@@ -49,7 +49,7 @@ class LoginRequest extends FormRequest
         ];
 
         if (! Auth::guard($guard)->attempt($credentials, $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+            RateLimiter::hit($this->throttleKey($guard));
 
             throw ValidationException::withMessages([
                 'phone' => trans('auth.failed'),
