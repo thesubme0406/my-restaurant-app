@@ -25,6 +25,7 @@ export default function ReportFilterBar({
     const isMenuReport = reportType === 'menu';
     const isIncomeReport = reportType === 'income';
     const isQueueStatsReport = reportType === 'queue_statistics';
+    const isQueueBookingReport = reportType === 'queue_booking';
     const isServiceReport = reportType === 'service';
     const isPurchaseReport = reportType === 'ingredient_purchase';
     const isImportReport = reportType === 'ingredient_import';
@@ -114,6 +115,15 @@ export default function ReportFilterBar({
                                             ))}
                                         </RSelect>
                                     </RField>
+                                    <RField className="w-[8.5rem] shrink-0" label="ເລືອກໂຊນ">
+                                        <RSelect value={filters.tableZone} onChange={(e) => onPatch({ tableZone: e.target.value })}>
+                                            {options.tableZoneFilterOptions.map((opt) => (
+                                                <option key={opt.value || 'all'} value={opt.value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </RSelect>
+                                    </RField>
                                     <TierSelectField
                                         boxClass="w-40 shrink-0"
                                         label="Buffet Tier (ລາຍຮັບ)"
@@ -126,10 +136,23 @@ export default function ReportFilterBar({
 
                             {isServiceReport && (
                                 <>
-                                    <RField className="w-40 shrink-0" label="ສະຖານະຊຳລະ">
-                                        <RSelect value={filters.queueStatus} onChange={(e) => onPatch({ queueStatus: e.target.value })}>
+                                    <RField className="w-[7.25rem] shrink-0" label="ສະຖານະຊຳລະ">
+                                        <RSelect
+                                            value={filters.queueStatus}
+                                            onChange={(e) => onPatch({ queueStatus: e.target.value })}
+                                            className="px-2 text-xs"
+                                        >
                                             {options.servicePaymentStatusOptions.map((opt) => (
                                                 <option key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </RSelect>
+                                    </RField>
+                                    <RField className="w-[8.5rem] shrink-0" label="ເລືອກໂຊນ">
+                                        <RSelect value={filters.tableZone} onChange={(e) => onPatch({ tableZone: e.target.value })}>
+                                            {options.tableZoneFilterOptions.map((opt) => (
+                                                <option key={opt.value || 'all'} value={opt.value}>
                                                     {opt.label}
                                                 </option>
                                             ))}
@@ -247,6 +270,18 @@ export default function ReportFilterBar({
                                             </div>
                                         )}
                                     </div>
+                                </RField>
+                            )}
+
+                            {isQueueBookingReport && (
+                                <RField className="w-[8.5rem] shrink-0" label="ເລືອກໂຊນ">
+                                    <RSelect value={filters.tableZone} onChange={(e) => onPatch({ tableZone: e.target.value })}>
+                                        {options.tableZoneFilterOptions.map((opt) => (
+                                            <option key={opt.value || 'all'} value={opt.value}>
+                                                {opt.label}
+                                            </option>
+                                        ))}
+                                    </RSelect>
                                 </RField>
                             )}
 

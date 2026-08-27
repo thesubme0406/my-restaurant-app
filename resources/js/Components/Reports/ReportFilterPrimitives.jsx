@@ -44,11 +44,21 @@ export function TierSelectField({ label = 'Buffet Tier', value, onChange, tiers,
 const statShell = 'rounded-xl border border-slate-200 border-t-2 border-t-[#194c9f] bg-white px-3 py-2 shadow-sm';
 
 /** ກາດສະຫຼຸບລາຍງານ — ໃຊ້ຊ້ຳໃນຫຼາຍປະເພດລາຍງານ */
-export function ReportStatCard({ title, value }) {
+export function ReportStatCard({ title, value, variant = 'default', hint }) {
+    const shell =
+        variant === 'info'
+            ? 'rounded-xl border border-dashed border-amber-300 border-t-2 border-t-amber-500 bg-amber-50/70 px-3 py-2 shadow-sm'
+            : statShell;
+    const titleClass = variant === 'info' ? 'text-xs font-semibold text-amber-800 font-sans' : 'text-xs font-semibold text-[#194c9f] font-sans';
+    const valueClass = variant === 'info' ? 'text-lg font-bold tabular-nums text-amber-900' : 'text-lg font-bold text-slate-900';
+    const hintClass =
+        variant === 'info' ? 'mt-0.5 text-[10px] text-amber-800/80 font-sans' : 'mt-0.5 text-[10px] text-slate-500 font-sans';
+
     return (
-        <div className={statShell}>
-            <p className="text-xs font-semibold text-[#194c9f] font-sans">{title}</p>
-            <p className="text-lg font-bold text-slate-900">{value ?? 0}</p>
+        <div className={shell}>
+            <p className={titleClass}>{title}</p>
+            <p className={valueClass}>{value ?? 0}</p>
+            {hint ? <p className={hintClass}>{hint}</p> : null}
         </div>
     );
 }

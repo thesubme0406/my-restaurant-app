@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Booking;
 use App\Models\Customer;
+use App\Services\QueueSequenceService;
+use App\Support\PhoneNumber;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -16,10 +18,9 @@ class BookingController extends Controller
     /** ຄົ້ນຊື່ຈາກເບີໂທ — ຄິວຫຼ້າສຸດກ່ອນ, ຫຼັງນັ້ນຕາຕະລາງ customers (ສະກົດຕາມຈອງຫຼ້າສຸດ). */
     public function lookupCustomerByPhone(Request $request): JsonResponse
     {
-        $raw = (string) $request->query('phone', '');
-        $phone = preg_replace('/\D+/', '', $raw) ?? '';
+        $phone = PhoneNumber::digits((string) $request->query('phone', ''));
 
-        if (strlen($phone) < 8 || strlen($phone) > 15) {
+        if (! PhoneNumber::isValid($phone)) {
             return response()->json([
                 'name' => null,
                 'matched' => false,
@@ -64,14 +65,19 @@ class BookingController extends Controller
         $authCustomer = $request->user('customer');
         abort_if($authCustomer === null, 403);
 
+        $request->merge([
+            'phone' => PhoneNumber::digits((string) $request->input('phone', '')),
+        ]);
+
         $validated = $request->validate([
             'customer_name' => ['required', 'string', 'max:100'],
-            'phone' => ['required', 'regex:/^020\d{8}$/'],
+            'phone' => PhoneNumber::rules(),
             'guest_count' => ['required', 'integer', 'min:1', 'max:20'],
             'tier_id' => ['required', 'integer', Rule::exists('buffet_tiers', 'id')],
             'booking_date' => ['required', 'date', 'after_or_equal:today'],
+            'is_vip' => ['sometimes', 'boolean'],
             'queue_no' => ['prohibited'],
-        ]);
+        ], PhoneNumber::messages());
 
         $bookingDate = Carbon::parse((string) $validated['booking_date'])->startOfDay();
         $queueDayString = $bookingDate->toDateString();
@@ -80,7 +86,9 @@ class BookingController extends Controller
         $booking = null;
         for ($attempt = 1; $attempt <= 25; $attempt++) {
             try {
-                $booking = DB::transaction(function () use ($validated, $authCustomer, $bookingDate, $queueDayString): Booking {
+                $isVip = (bool) ($validated['is_vip'] ?? false);
+
+                $booking = DB::transaction(function () use ($validated, $authCustomer, $bookingDate, $queueDayString, $isVip): Booking {
                     $phone = (string) $validated['phone'];
                     $customerName = trim((string) $validated['customer_name']);
 
@@ -102,30 +110,15 @@ class BookingController extends Controller
                         $customer->save();
                     }
 
-                    // Lock today's global sequence rows and take max numeric suffix (not max id).
-                    $queueNos = Booking::query()
-                        ->where('queue_day', $queueDayString)
-                        ->where('queue_no', 'like', 'Q%')
-                        ->lockForUpdate()
-                        ->pluck('queue_no');
-
-                    $maxSuffix = 0;
-                    foreach ($queueNos as $queueNo) {
-                        if (! is_string($queueNo)) {
-                            continue;
-                        }
-                        if (preg_match('/^Q-?(\d+)$/', $queueNo, $matches) === 1) {
-                            $maxSuffix = max($maxSuffix, (int) $matches[1]);
-                        }
-                    }
-                    $nextNumber = $maxSuffix + 1;
+                    $queueNo = QueueSequenceService::allocateNextQueueNo($queueDayString, $isVip);
 
                     return Booking::query()->create([
                         'customer_id' => $customer->id,
                         'customer_name' => $customerName,
                         'phone' => $phone,
                         'tier_id' => (int) $validated['tier_id'],
-                        'queue_no' => 'Q'.str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT),
+                        'queue_no' => $queueNo,
+                        'is_vip' => $isVip,
                         'queue_day' => $queueDayString,
                         'guest_count' => (int) $validated['guest_count'],
                         'expected_time' => $bookingDate,
@@ -162,9 +155,9 @@ class BookingController extends Controller
             'active_queue_item' => [
                 'id' => $booking->id,
                 'queue_no' => (string) $booking->queue_no,
+                'is_vip' => (bool) ($booking->is_vip ?? false),
                 'status' => (string) $booking->status,
                 'guest_count' => (int) ($booking->guest_count ?? 0),
-                'estimated_wait_time' => 0,
                 'customer_name' => (string) ($booking->customer_name ?: ($booking->customer?->name ?? $auth?->name ?? '')),
                 'phone' => (string) ($booking->phone ?? $booking->customer?->phone ?? $auth?->phone ?? ''),
                 'buffet_tier_label' => $buffetTierLabel,

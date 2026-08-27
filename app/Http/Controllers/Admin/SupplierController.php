@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Supplier;
+use App\Support\PhoneNumber;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,12 +14,16 @@ class SupplierController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
+        $request->merge([
+            'contact_tel' => PhoneNumber::digits((string) $request->input('contact_tel', '')),
+        ]);
+
         $data = $request->validate([
             'sup_name' => ['required', 'string', 'max:100'],
-            'contact_tel' => ['required', 'string', 'max:15'],
+            'contact_tel' => PhoneNumber::rules(),
             'contact_person' => ['required', 'string', 'max:50'],
             'sup_address' => ['required', 'string', 'max:255'],
-        ]);
+        ], PhoneNumber::messages());
 
         Supplier::query()->create($data);
 
@@ -27,12 +32,16 @@ class SupplierController extends Controller
 
     public function update(Request $request, Supplier $supplier): RedirectResponse
     {
+        $request->merge([
+            'contact_tel' => PhoneNumber::digits((string) $request->input('contact_tel', '')),
+        ]);
+
         $data = $request->validate([
             'sup_name' => ['required', 'string', 'max:100'],
-            'contact_tel' => ['required', 'string', 'max:15'],
+            'contact_tel' => PhoneNumber::rules(),
             'contact_person' => ['required', 'string', 'max:50'],
             'sup_address' => ['required', 'string', 'max:255'],
-        ]);
+        ], PhoneNumber::messages());
 
         $supplier->update($data);
 
@@ -58,4 +67,3 @@ class SupplierController extends Controller
         return redirect()->route('admin.master-data', ['section' => 'suppliers']);
     }
 }
-

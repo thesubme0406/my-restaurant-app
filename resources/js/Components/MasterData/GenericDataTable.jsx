@@ -1,5 +1,7 @@
 import { ChevronDown, Plus, Search } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import TablePagination from '@/Components/Admin/Common/TablePagination';
+import { PAGE_SIZE, paginateSlice } from '@/Components/Reports/reportTableUtils';
 
 const defaultPrimary = '#194c9f';
 
@@ -18,9 +20,11 @@ export default function GenericDataTable({
     addButtonLabel,
     primaryColor = defaultPrimary,
     toolbarClassName = '',
+    pageSize = PAGE_SIZE,
     categoryFilter,
 }) {
     const [query, setQuery] = useState('');
+    const [tablePage, setTablePage] = useState(1);
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
         if (!q || searchKeys.length === 0) {
@@ -30,6 +34,15 @@ export default function GenericDataTable({
             searchKeys.some((key) => String(row[key] ?? '').toLowerCase().includes(q))
         );
     }, [rows, query, searchKeys]);
+
+    const { pageRows, startIdx } = useMemo(
+        () => paginateSlice(filtered, tablePage, pageSize),
+        [filtered, tablePage, pageSize]
+    );
+
+    useEffect(() => {
+        setTablePage(1);
+    }, [rows, query, categoryFilter?.value]);
 
     const count = totalCount ?? rows.length;
     const displayCount = query.trim() ? filtered.length : count;
@@ -116,14 +129,14 @@ export default function GenericDataTable({
                                 </td>
                             </tr>
                         ) : (
-                            filtered.map((row, index) => (
+                            pageRows.map((row, index) => (
                                 <tr key={row.id ?? index} className="hover:bg-slate-50/50">
                                     {columns.map((col) => (
                                         <td
                                             key={col.key}
                                             className={`align-middle px-3 py-3 text-slate-800 sm:px-4 ${col.className ?? ''}`}
                                         >
-                                            {col.cell({ row, index })}
+                                            {col.cell({ row, index: startIdx + index })}
                                         </td>
                                     ))}
                                 </tr>
@@ -132,6 +145,13 @@ export default function GenericDataTable({
                     </tbody>
                 </table>
             </div>
+            <TablePagination
+                className="no-print"
+                page={tablePage}
+                onPageChange={setTablePage}
+                totalItems={filtered.length}
+                pageSize={pageSize}
+            />
         </div>
     );
 }

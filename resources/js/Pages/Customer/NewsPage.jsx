@@ -97,20 +97,20 @@ export default function NewsPage() {
         <CustomerLayout>
             <Head title="ຂ່າວສານ ແລະ ໂປຣໂມຊັ່ນ" />
 
-            <div className="space-y-4 pb-6">
-                <div className="rounded-2xl border border-[#194c9f]/15 bg-white px-4 py-3 shadow-sm">
-                    <h2 className="font-lao text-lg font-bold leading-snug text-[#194c9f]">ຂ່າວສານ ແລະ ໂປຣໂມຊັ່ນ</h2>
-                    <p className="mt-1 text-xs text-slate-600">ຕິດຕາມຂ່າວສານ ແລະ ໂປຣໂມຊັ່ນລ່າສຸດຈາກ OSHINEI</p>
+            <div className="customer-page space-y-4 pb-6 sm:space-y-5 md:space-y-6">
+                <div className="rounded-2xl border border-[#194c9f]/18 bg-white/95 px-5 py-4 shadow-md ring-1 ring-slate-200/60 sm:px-6">
+                    <h2 className="font-lao text-base font-bold leading-snug text-[#194c9f] sm:text-lg">ຂ່າວສານ ແລະ ໂປຣໂມຊັ່ນ</h2>
+                    <p className="mt-1 text-[11px] text-slate-600 sm:text-xs">ຕິດຕາມຂ່າວສານ ແລະ ໂປຣໂມຊັ່ນລ່າສຸດຈາກ OSHINEI</p>
                 </div>
 
                 {posts.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-[#194c9f]/25 bg-white px-5 py-12 text-center shadow-sm">
-                        <p className="font-lao text-sm font-medium leading-relaxed text-slate-600">
+                        <p className="font-lao text-xs font-medium leading-relaxed text-slate-600 sm:text-sm">
                             ຍັງບໍ່ມີຂ່າວສານ ຫຼື ໂປຣໂມຊັ່ນໃນເວລານີ້
                         </p>
                     </div>
                 ) : (
-                    <ul className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
+                    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-3">
                         {cards.map(({ post, preview, needsMore }) => (
                             <li key={post.id}>
                                 <button
@@ -133,7 +133,7 @@ export default function NewsPage() {
                                         )}
                                     </div>
                                     <div className="space-y-2 px-4 pb-4 pt-3">
-                                        <h3 className="font-lao text-base font-bold leading-snug text-[#194c9f]">{post.title}</h3>
+                                        <h3 className="font-lao text-sm font-bold leading-snug text-[#194c9f] sm:text-base">{post.title}</h3>
                                         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500">
                                             <time dateTime={post.published_at ?? undefined}>{formatPostDate(post.published_at)}</time>
                                             <span aria-hidden>·</span>
@@ -144,9 +144,9 @@ export default function NewsPage() {
                                                 ) : null}
                                             </span>
                                         </div>
-                                        <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">{preview}</p>
+                                        <p className="whitespace-pre-line text-xs leading-relaxed text-slate-700 sm:text-sm">{preview}</p>
                                         {needsMore ? (
-                                            <span className="text-sm font-semibold text-[#194c9f]">ເບິ່ງເພີ່ມເຕີມ →</span>
+                                            <span className="text-xs font-semibold text-[#194c9f] sm:text-sm">ເບິ່ງເພີ່ມເຕີມ →</span>
                                         ) : null}
                                     </div>
                                 </button>
@@ -169,7 +169,7 @@ export default function NewsPage() {
                         onClick={closeDetail}
                         aria-label="ປິດ"
                     />
-                    <div className="relative flex max-h-[min(92vh,900px)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90vh] sm:rounded-2xl">
+                    <div className="relative flex max-h-[min(92vh,900px)] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl lg:max-w-xl">
                         <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
                             <button
                                 type="button"
@@ -206,7 +206,7 @@ export default function NewsPage() {
                                 )}
                             </div>
                             <div className="space-y-3 px-4 py-4">
-                                <h3 id="news-detail-title" className="font-lao text-lg font-bold leading-snug text-[#194c9f]">
+                                <h3 id="news-detail-title" className="font-lao text-base font-bold leading-snug text-[#194c9f] sm:text-lg">
                                     {detail.title}
                                 </h3>
                                 <div className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
@@ -217,7 +217,7 @@ export default function NewsPage() {
                                         {detail.author_code ? <span className="text-slate-400"> ({detail.author_code})</span> : null}
                                     </span>
                                 </div>
-                                <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{detail.content}</div>
+                                <div className="whitespace-pre-wrap text-xs leading-relaxed text-slate-800 sm:text-sm">{detail.content}</div>
                             </div>
                         </div>
                     </div>

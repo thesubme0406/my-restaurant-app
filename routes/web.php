@@ -62,6 +62,7 @@ Route::middleware(['auth:staff'])->prefix('queue-dashboard')->name('queue-dashbo
     Route::get('/bookings/lookup-customer-by-phone', [BookingController::class, 'lookupCustomerByPhone'])
         ->name('bookings.lookup-customer-by-phone');
     Route::post('/queues', [QueueDashboardController::class, 'storeQueue'])->name('queues.store');
+    Route::post('/queues/{booking}/call', [QueueDashboardController::class, 'callQueue'])->name('queues.call');
     Route::post('/queues/{booking}/skip', [QueueDashboardController::class, 'skipQueue'])->name('queues.skip');
     Route::post('/queues/{booking}/cancel', [QueueDashboardController::class, 'cancelQueue'])->name('queues.cancel');
     Route::post('/tables/{table}/status', [QueueDashboardController::class, 'updateTableStatus'])->name('tables.status');
@@ -95,26 +96,12 @@ Route::prefix('customer')->name('customer.')->group(function () {
     Route::get('/about', CustomerAboutController::class)->name('about');
 });
 
-Route::middleware(['auth:customer'])->prefix('customer')->name('customer.')->group(function () {
-    Route::get('/reserve', [ReserveController::class, 'index'])->name('reserve');
-    Route::get('/reserve/stats', [ReserveController::class, 'stats'])->name('reserve.stats');
-    Route::post('/reserve', [BookingController::class, 'store'])->name('reserve.store');
-    Route::patch('/reserve/{booking}/cancel', [BookingController::class, 'cancel'])->name('reserve.cancel');
-    Route::get('/reserve/new', function () {
-        return redirect()->route('customer.reserve');
-    })->name('reserve.new');
-
-    Route::get('/profile', [CustomerProfileController::class, 'edit'])->name('profile');
-    Route::patch('/profile', [CustomerProfileController::class, 'update'])->name('profile.update');
-});
-
-Route::get('/home', CustomerHomeController::class)->name('home');
-Route::middleware(['auth:customer'])->get('/reserve', fn () => redirect()->route('customer.reserve'));
 Route::get('/menu', fn () => redirect()->route('customer.menu'));
 Route::get('/home', fn () => redirect()->route('customer.home'));
 Route::get('/news', fn () => redirect()->route('customer.news'));
 Route::get('/contact', fn () => redirect()->route('customer.contact'));
 Route::get('/about', fn () => redirect()->route('customer.about'));
+Route::middleware(['auth:customer'])->get('/reserve', fn () => redirect()->route('customer.reserve'));
 Route::middleware(['auth:customer'])->get('/profile', fn () => redirect()->route('customer.profile'));
 
 Route::middleware(['auth:staff'])->prefix('staff')->name('staff.')->group(function () {
@@ -199,11 +186,16 @@ Route::middleware(['auth:staff', EnsureStaffIsManager::class])->prefix('admin')-
     Route::get('/payments/service-lookup', [PaymentController::class, 'lookupService'])->name('payments.lookup-service');
     Route::get('/payments/active-services', [PaymentController::class, 'getActiveServices'])->name('payments.active-services');
     Route::delete('/payments/{payment}', [PaymentController::class, 'destroy'])->name('payments.destroy');
+    Route::post('/payments/{payment}/restore', [PaymentController::class, 'restore'])->name('payments.restore');
+    Route::patch('/payments/{payment}/voided', [PaymentController::class, 'correctVoided'])->name('payments.correct-voided');
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports');
     Route::get('/reports/data', [ReportController::class, 'data'])->name('reports.data');
-    Route::get('/queue-board', [QueueBoardController::class, 'index'])->name('queue-board');
-    Route::get('/queue-board/data', [QueueBoardController::class, 'data'])->name('queue-board.data');
+    Route::get('/queue-board', fn () => redirect()->route('queue-board.display'))->name('queue-board');
 });
+
+// ບອດຄິວໜ້າຮ້ານ — ໜ້າຈໍ TV (ບໍ່ຕ້ອງເຂົ້າລະບົບ)
+Route::get('/queue-board', [QueueBoardController::class, 'display'])->name('queue-board.display');
+Route::get('/queue-board/data', [QueueBoardController::class, 'data'])->name('queue-board.data');
 
 require __DIR__.'/auth.php';

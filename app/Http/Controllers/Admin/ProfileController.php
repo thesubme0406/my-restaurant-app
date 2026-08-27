@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -39,16 +40,18 @@ class ProfileController extends Controller
         $staff = $request->user('staff');
         abort_if($staff === null, 403);
 
+        $request->merge([
+            'phone' => PhoneNumber::digits((string) $request->input('phone', '')),
+        ]);
+
         $data = $request->validate([
             'username' => ['required', 'string', 'max:25', 'regex:/^[A-Za-z0-9._-]+$/', Rule::unique('staffs', 'username')->ignore($staff->id)],
             'address' => ['nullable', 'string', 'max:2000'],
-            'phone' => ['required', 'string', 'regex:/^[0-9]{8,15}$/', Rule::unique('staffs', 'phone')->ignore($staff->id)],
+            'phone' => array_merge(PhoneNumber::rules(), [Rule::unique('staffs', 'phone')->ignore($staff->id)]),
             'image' => ['nullable', 'image', 'max:4096'],
             'old_password' => ['nullable', 'string'],
             'new_password' => ['nullable', 'string', 'min:8', 'max:255', 'confirmed'],
-        ], [
-            'phone.regex' => 'ເບີໂທຕ້ອງເປັນເລກເທົ່ານັ້ນ (8–15 ຫຼັກ).',
-        ]);
+        ], PhoneNumber::messages());
 
         $updates = [
             'username' => $data['username'],
@@ -79,4 +82,3 @@ class ProfileController extends Controller
         return back()->with('success', 'ອັບເດດຂໍ້ມູນໂປຣໄຟລ໌ສຳເລັດແລ້ວ');
     }
 }
-

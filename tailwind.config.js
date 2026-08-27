@@ -32,6 +32,10 @@ export default {
                     ice: '#7dc6ff',
                 },
             },
+            fontSize: {
+                'queue-hero': ['clamp(2rem, 10vw, 5rem)', { lineHeight: '1', letterSpacing: '0.04em' }],
+                'queue-board-hero': ['clamp(2.25rem, 14vw, 8rem)', { lineHeight: '1', letterSpacing: '0.04em' }],
+            },
         },
     },
 

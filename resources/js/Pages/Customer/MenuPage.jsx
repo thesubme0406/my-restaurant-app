@@ -22,6 +22,7 @@ export default function MenuPage({
     buffetTimeLimitHours = 2,
 }) {
     const [selectedTierId, setSelectedTierId] = useState(() => initialTierId ?? buffetTiers[0]?.id ?? null);
+    const tabScrollRef = useRef(null);
     const tabBtnRefs = useRef({});
 
     useEffect(() => {
@@ -42,11 +43,31 @@ export default function MenuPage({
 
     useLayoutEffect(() => {
         const id = selectedTierId;
-        if (id == null) {
+        const scroller = tabScrollRef.current;
+        if (id == null || !scroller || buffetTiers.length === 0) {
             return;
         }
+
         const el = tabBtnRefs.current[id];
-        el?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        if (!el) {
+            return;
+        }
+
+        const firstId = Number(buffetTiers[0]?.id);
+        const lastId = Number(buffetTiers[buffetTiers.length - 1]?.id);
+        const selected = Number(id);
+
+        if (selected === firstId) {
+            scroller.scrollTo({ left: 0, behavior: 'smooth' });
+            return;
+        }
+
+        if (selected === lastId) {
+            scroller.scrollTo({ left: scroller.scrollWidth, behavior: 'smooth' });
+            return;
+        }
+
+        el.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
     }, [selectedTierId, buffetTiers]);
 
     const selectedTier = useMemo(
@@ -60,17 +81,19 @@ export default function MenuPage({
             : `${selectedTier.menu_count}+ ເມນູ`
         : '';
 
+    const tierTabGrid = buffetTiers.length <= 4;
+
     return (
         <CustomerLayout>
             <Head title="ເມນູບຸບເຟ່" />
 
-            <div className="mx-auto max-w-7xl space-y-4 pb-8 lg:space-y-6">
+            <div className="customer-page space-y-4 pb-6 sm:space-y-5 md:space-y-6 lg:space-y-7">
                 {/* Hero (navy) */}
-                <section className="relative overflow-hidden rounded-2xl bg-[#0f2d5c] px-4 pb-6 pt-5 text-white shadow-xl lg:px-8 lg:pb-8 lg:pt-7">
+                <section className="relative overflow-hidden rounded-2xl bg-[#0f2d5c] px-4 pb-5 pt-4 text-white shadow-xl sm:px-6 sm:pb-6 sm:pt-5 md:px-8 md:pb-7 md:pt-6">
                     <div className="pointer-events-none absolute -right-8 top-0 h-40 w-40 rounded-full bg-white/5" aria-hidden />
                     <div className="pointer-events-none absolute -left-10 bottom-0 h-32 w-32 rounded-full bg-white/5" aria-hidden />
                     <p className="text-center text-[10px] font-semibold uppercase tracking-[0.35em] text-white/50">Customer Menu</p>
-                    <h1 className="mt-2 text-center text-2xl font-extrabold leading-tight tracking-tight lg:text-3xl">
+                    <h1 className="mt-2 text-center text-xl font-extrabold leading-tight tracking-tight sm:text-2xl lg:text-3xl">
                         ເມນູ ບຸບເຟ່ ອາຫານຍີ່ປຸ່ນ
                     </h1>
                     <p className="mx-auto mt-3 max-w-4xl text-center text-xs leading-relaxed text-white/85 lg:text-sm">
@@ -80,19 +103,28 @@ export default function MenuPage({
 
                 {/* Tier tabs — every tier from DB; horizontal scroll for 4+ packages */}
                 {buffetTiers.length > 0 ? (
-                    <section className="rounded-2xl border border-slate-200 bg-white px-0 pb-2 pt-3 shadow-sm lg:px-4">
+                    <section className="rounded-2xl border border-slate-200 bg-white px-0 pb-2 pt-3 shadow-sm sm:px-2 md:px-3">
                         <div className="relative w-full">
+                            {!tierTabGrid ? (
+                                <>
+                                    <div
+                                        className="pointer-events-none absolute inset-y-1 left-0 z-[1] w-6 bg-gradient-to-r from-white to-transparent sm:w-8"
+                                        aria-hidden
+                                    />
+                                    <div
+                                        className="pointer-events-none absolute inset-y-1 right-0 z-[1] w-6 bg-gradient-to-l from-white to-transparent sm:w-8"
+                                        aria-hidden
+                                    />
+                                </>
+                            ) : null}
                             <div
-                                className="pointer-events-none absolute inset-y-1 left-0 z-[1] w-8 bg-gradient-to-r from-white to-transparent"
-                                aria-hidden
-                            />
-                            <div
-                                className="pointer-events-none absolute inset-y-1 right-0 z-[1] w-8 bg-gradient-to-l from-white to-transparent"
-                                aria-hidden
-                            />
-                            <div
-                                className="flex snap-x snap-mandatory justify-center gap-2 overflow-x-auto scroll-pb-1 scroll-pl-3 scroll-pr-3 px-3 pb-2 pt-1 [-webkit-overflow-scrolling:touch] lg:px-1"
-                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(148,163,184,0.85) transparent' }}
+                                ref={tabScrollRef}
+                                className={`w-full min-w-0 pb-2 pt-1 ${
+                                    tierTabGrid
+                                        ? 'grid grid-cols-2 gap-2 px-3 sm:grid-cols-4 sm:gap-2.5 sm:px-4'
+                                        : 'flex snap-x snap-mandatory justify-start gap-2 overflow-x-auto overscroll-x-contain scroll-pb-1 px-3 [-webkit-overflow-scrolling:touch] sm:px-4'
+                                }`}
+                                style={tierTabGrid ? undefined : { scrollbarWidth: 'thin', scrollbarColor: 'rgba(148,163,184,0.85) transparent' }}
                             >
                                 {buffetTiers.map((tier) => {
                                     const active = Number(tier.id) === Number(selectedTierId);
@@ -105,7 +137,11 @@ export default function MenuPage({
                                             }}
                                             type="button"
                                             onClick={() => setSelectedTierId(Number(tier.id))}
-                                            className={`shrink-0 snap-center rounded-2xl border-2 px-3 py-2.5 text-left shadow-sm transition sm:min-w-[11rem] sm:max-w-[14rem] ${
+                                            className={`rounded-2xl border-2 px-3 py-2.5 text-left shadow-sm transition ${
+                                                tierTabGrid
+                                                    ? 'w-full min-w-0'
+                                                    : 'shrink-0 snap-start scroll-ml-3 first:scroll-ml-0 min-w-[8.25rem] max-w-[10.5rem] sm:min-w-[10.5rem] sm:max-w-[12rem]'
+                                            } ${
                                                 active
                                                     ? 'border-[#194c9f] bg-[#194c9f] text-white shadow-md shadow-[#194c9f]/25'
                                                     : 'border-slate-200 bg-white text-slate-700 hover:border-[#194c9f]/40 hover:bg-slate-50'
@@ -127,23 +163,25 @@ export default function MenuPage({
                                 })}
                             </div>
                         </div>
-                        <p className="w-full px-4 pb-1 text-center text-[10px] font-medium leading-relaxed text-slate-500 lg:text-xs">
-                            ມີທັງໝົດ <span className="font-bold text-[#194c9f]">{buffetTiers.length}</span> ແພັກເກັດ · ເລື່ອນແນວນອນເພື່ອເບິ່ງທັງໝົດ
-                        </p>
+                        {!tierTabGrid ? (
+                            <p className="w-full px-3 pb-1 text-center text-[10px] font-medium leading-relaxed text-slate-500 sm:px-4 sm:text-xs">
+                                ມີທັງໝົດ <span className="font-bold text-[#194c9f]">{buffetTiers.length}</span> ແພັກເກັດ · ເລື່ອນແນວນອນເພື່ອເບິ່ງທັງໝົດ
+                            </p>
+                        ) : null}
                     </section>
                 ) : null}
 
                 {/* Summary card */}
                 {selectedTier ? (
-                    <section className="rounded-2xl bg-slate-50 p-3 lg:p-4">
+                    <section className="rounded-2xl bg-slate-50 p-2.5 sm:p-3 md:p-4">
                         <div
-                            className="w-full overflow-hidden rounded-2xl px-4 py-4 shadow-md lg:px-6 lg:py-5"
+                            className="w-full overflow-hidden rounded-2xl px-4 py-4 shadow-md sm:px-5 sm:py-4 md:px-6 md:py-5"
                             style={{ backgroundColor: goldCard }}
                         >
-                            <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
-                                <div className="min-w-0">
-                                    <h2 className="text-lg font-extrabold text-slate-900 lg:text-xl">{selectedTier.tier_name}</h2>
-                                    <p className="mt-1 text-xs font-medium leading-relaxed text-slate-800/90 lg:text-sm">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0 flex-1">
+                                    <h2 className="text-base font-extrabold text-slate-900 sm:text-lg md:text-xl">{selectedTier.tier_name}</h2>
+                                    <p className="mt-1 text-xs font-medium leading-relaxed text-slate-800/90 sm:text-sm">
                                         {selectedTier.description || 'ເມນູຄັດສັນສຳລັບແພັກເກັດນີ້ — ກິນໄດ້ບໍ່ຈຳກັດຕາມເວລາທີ່ກຳນົດ.'}
                                     </p>
                                     <div className="mt-3 flex flex-wrap gap-2">
@@ -155,9 +193,9 @@ export default function MenuPage({
                                         </span>
                                     </div>
                                 </div>
-                                <div className="shrink-0 rounded-xl bg-white/80 px-3 py-2 text-right shadow-sm lg:min-w-[180px]">
+                                <div className="shrink-0 rounded-xl bg-white/80 px-4 py-2.5 text-left shadow-sm sm:min-w-[160px] sm:text-right md:min-w-[180px]">
                                     <p className="text-[11px] font-bold tracking-wide text-slate-500">ລາຄາ</p>
-                                    <p className="mt-1 text-lg font-black leading-none text-slate-900 lg:text-xl">{formatKipPerPerson(selectedTier.price)}</p>
+                                    <p className="mt-1 text-base font-black leading-none text-slate-900 sm:text-lg md:text-xl">{formatKipPerPerson(selectedTier.price)}</p>
                                 </div>
                             </div>
                         </div>
@@ -170,10 +208,10 @@ export default function MenuPage({
 
                 {/* Categories + grid */}
                 {selectedTier && selectedTier.categories?.length > 0 ? (
-                    <div className="space-y-6 rounded-2xl border border-slate-200 bg-white px-3 pb-6 pt-5 shadow-sm lg:space-y-8 lg:px-5 lg:pb-8 lg:pt-6">
+                    <div className="space-y-5 rounded-2xl border border-slate-200 bg-white px-3 pb-5 pt-4 shadow-sm sm:space-y-6 sm:px-4 sm:pb-6 sm:pt-5 md:px-5 md:pb-8 md:pt-6">
                         {selectedTier.categories.map((cat) => (
-                            <section key={cat.category_id} className="mx-auto max-w-6xl">
-                                <p className="mb-4 text-center text-[11px] font-bold tracking-wide text-slate-500 lg:text-xs">
+                            <section key={cat.category_id}>
+                                <p className="mb-3 px-1 text-center text-[10px] font-bold tracking-wide text-slate-500 sm:mb-4 sm:text-[11px] md:text-xs">
                                     ——— {cat.category_name}
                                     {cat.category_name_en ? (
                                         <>
@@ -183,7 +221,7 @@ export default function MenuPage({
                                     ) : null}{' '}
                                     ———
                                 </p>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:gap-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+                                <div className="customer-menu-grid">
                                     {cat.items.map((item) => (
                                         <article
                                             key={item.id}
@@ -204,8 +242,8 @@ export default function MenuPage({
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="p-2">
-                                                <p className="line-clamp-3 text-center text-[10px] font-bold leading-snug text-slate-900 sm:text-[11px]">
+                                            <div className="p-2 sm:p-2.5">
+                                                <p className="line-clamp-3 text-center text-[10px] font-bold leading-snug text-slate-900 sm:text-[11px] md:text-xs">
                                                     {item.name}
                                                     {item.name_en ? (
                                                         <>
@@ -228,7 +266,7 @@ export default function MenuPage({
                 ) : null}
 
                 <div className="pt-1 text-center">
-                    <Link href={route('customer.home')} className="text-sm font-bold" style={{ color: brandBlue }}>
+                    <Link href={route('customer.home')} className="text-xs font-bold sm:text-sm" style={{ color: brandBlue }}>
                         ← ກັບໜ້າຫຼັກ
                     </Link>
                 </div>

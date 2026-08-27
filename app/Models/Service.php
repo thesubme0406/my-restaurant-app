@@ -46,7 +46,7 @@ class Service extends Model
 
     public function payment(): HasOne
     {
-        return $this->hasOne(Payment::class, 'service_id');
+        return $this->hasOne(Payment::class, 'service_id')->withTrashed();
     }
 
     public function tables(): BelongsToMany
@@ -123,6 +123,7 @@ class Service extends Model
                     ]);
                 }
             }
+
             return $existing;
         }
 

@@ -6,6 +6,7 @@ use App\Models\BuffetTier;
 use App\Models\Menu;
 use App\Models\MenuCatg;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Links menus to buffet tiers via the buffet_tier_menu pivot (buffet_tier_id, menu_id).
@@ -70,5 +71,15 @@ class BuffetTierMappingSeeder extends Seeder
         $tierSilver->menus()->sync($silverIds);
         $tierGold->menus()->sync($goldIds);
         $tierDeluxe->menus()->sync($deluxeIds);
+
+        // Keep legacy menu_detail in sync with buffet_tier_menu for any code paths still using it.
+        DB::table('menu_detail')->delete();
+        $pivotRows = DB::table('buffet_tier_menu')->get();
+        foreach ($pivotRows as $pivot) {
+            DB::table('menu_detail')->insert([
+                'buffet_tier_id' => $pivot->buffet_tier_id,
+                'menu_id' => $pivot->menu_id,
+            ]);
+        }
     }
 }

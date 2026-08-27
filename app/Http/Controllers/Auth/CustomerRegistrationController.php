@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,11 +21,15 @@ class CustomerRegistrationController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $request->merge([
+            'phone' => PhoneNumber::digits((string) $request->input('phone', '')),
+        ]);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'phone' => ['required', 'string', 'max:32', 'unique:customers,phone'],
+            'phone' => array_merge(PhoneNumber::rules(), ['unique:customers,phone']),
             'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
+        ], PhoneNumber::messages());
 
         $customer = Customer::query()->create([
             'name' => $validated['name'],

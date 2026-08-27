@@ -1,4 +1,5 @@
 import MoneyAmountInput from '@/Components/MoneyAmountInput';
+import { digitsOnly, PHONE_MAX_LENGTH, PHONE_PLACEHOLDER, isValidPhone } from '@/utils/phoneFormat';
 import axios from 'axios';
 import { X } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
@@ -114,7 +115,7 @@ export default function GenericFormModal({
             if (debounceTimers.current[key]) {
                 clearTimeout(debounceTimers.current[key]);
             }
-            if (digits.length < 8) {
+            if (!isValidPhone(digits)) {
                 abortRef.current?.abort();
                 nameAutofillRef.current = false;
                 return;
@@ -132,7 +133,7 @@ export default function GenericFormModal({
         (fieldName, lookup) => {
             clearDebounce();
             const digits = String(dataRef.current[fieldName] ?? '').replace(/\D/g, '');
-            if (digits.length >= 8 && digits.length <= 15) {
+            if (isValidPhone(digits)) {
                 runPhoneLookup(digits, lookup);
             }
         },
@@ -311,7 +312,7 @@ export default function GenericFormModal({
                     value={fieldValue(data, field.name)}
                     onChange={(e) => {
                         if (isTel) {
-                            const v = e.target.value.replace(/\D/g, '').slice(0, 15);
+                            const v = digitsOnly(e.target.value);
                             setData(field.name, v);
                             if (field.phoneLookup) {
                                 schedulePhoneLookup(field.name, v, field.phoneLookup);
@@ -325,7 +326,8 @@ export default function GenericFormModal({
                             flushPhoneLookup(field.name, field.phoneLookup);
                         }
                     }}
-                    maxLength={field.maxLength}
+                    maxLength={isTel ? PHONE_MAX_LENGTH : field.maxLength}
+                    placeholder={isTel ? (field.placeholder ?? PHONE_PLACEHOLDER) : field.placeholder}
                     required={field.required}
                     autoComplete={isPassword ? 'new-password' : isTel ? 'tel' : undefined}
                 />

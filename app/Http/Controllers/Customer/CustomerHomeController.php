@@ -3,26 +3,17 @@
 namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
-use App\Models\Booking;
 use App\Models\BuffetTier;
 use App\Models\Menu;
+use App\Services\QueueDisplayService;
+use App\Support\PublicStorageUrl;
 use Carbon\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CustomerHomeController extends Controller
 {
-    private function publicImageUrl(?string $path): ?string
-    {
-        if ($path === null || $path === '') {
-            return null;
-        }
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        return '/storage/'.ltrim($path, '/');
-    }
+    public function __construct(private readonly QueueDisplayService $queueDisplay) {}
 
     public function __invoke(): Response
     {
@@ -48,7 +39,7 @@ class CustomerHomeController extends Controller
                     'name' => $m->name,
                     'name_en' => $m->name_en ? strtoupper(trim((string) $m->name_en)) : '',
                     'description' => $m->description ?? '',
-                    'image_url' => $this->publicImageUrl($m->image),
+                    'image_url' => PublicStorageUrl::from($m->image),
                     'category_name' => $m->category?->catg_name ?? '',
                 ];
             })->values()->all();
@@ -58,18 +49,13 @@ class CustomerHomeController extends Controller
                 'tier_name' => $tier->tier_name,
                 'price' => (float) $tier->price,
                 'description' => $tier->description ?? '',
-                'image_url' => $this->publicImageUrl($tier->image),
+                'image_url' => PublicStorageUrl::from($tier->image),
                 'menus' => $menus,
             ];
         })->values()->all();
 
-        // ນັບຄິວລໍຖ້າຕາມ logic ດຽວກັບ admin dashboard ຂອງ "ມື້ນີ້" (ຍັງບໍ່ໄດ້ນັ່ງໂຕະ)
-        $today = Carbon::today()->toDateString();
-        $waitingQueueCount = Booking::query()
-            ->whereDate('expected_time', $today)
-            ->whereIn('status', ['waiting', 'pending', 'confirmed'])
-            ->whereNull('table_id')
-            ->count();
+        // ນັບຄິວລໍຖ້າຕາມ logic ດຽວກັບ admin dashboard «ຄິວລໍຖ້າ» (calling + waitlist, ຍັງບໍ່ໄດ້ໂຕະ)
+        $waitingQueueCount = $this->queueDisplay->waitingCountToday();
 
         return Inertia::render('Customer/Home', [
             'buffetTiersWithMenus' => $buffetTiersWithMenus,

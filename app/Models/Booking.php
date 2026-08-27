@@ -16,6 +16,12 @@ class Booking extends Model
     /** ສະຖານະຄິວລໍຖ້າໂຕະ (ແຜງ walk-in ແລະການຂ້າມ/ຍົກເລີກກ່ອນນັ່ງ) */
     public const STATUSES_WAITLIST = ['waiting', 'pending', 'confirmed'];
 
+    /** ຖືກເອີ້ນທາງທີວີແຕ່ຍັງບໍ່ໄດ້ໂຕະ */
+    public const STATUS_CALLING = 'calling';
+
+    /** ຂ້າມຄົບຈຳນວນນີ້ → ຍົກເລີກຄິວອັດຕະໂນມັດ (ກົງກັບ QueueDashboardController). */
+    public const AUTO_CANCEL_AFTER_SKIP_COUNT = 2;
+
     protected $table = 'bookings';
 
     public $timestamps = false;
@@ -27,6 +33,7 @@ class Booking extends Model
         'tier_id',
         'table_id',
         'queue_no',
+        'is_vip',
         'queue_day',
         'guest_count',
         'expected_time',
@@ -47,6 +54,7 @@ class Booking extends Model
             'dining_finished_at' => 'datetime',
             'paid_at' => 'datetime',
             'queue_day' => 'date',
+            'is_vip' => 'boolean',
         ];
     }
 

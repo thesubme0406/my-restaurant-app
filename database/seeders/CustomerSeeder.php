@@ -15,6 +15,11 @@ class CustomerSeeder extends Seeder
             ['phone' => '02011110003', 'name' => 'Anousone'],
             ['phone' => '02011110004', 'name' => 'Sokdy'],
             ['phone' => '02011110005', 'name' => 'ຈັນທະລາ'],
+            ['phone' => '02011110006', 'name' => 'ວົງສະຫວັນ'],
+            ['phone' => '02011110007', 'name' => 'Khamla'],
+            ['phone' => '02011110008', 'name' => 'Mala'],
+            ['phone' => '02011110009', 'name' => 'ບຸນທຳ'],
+            ['phone' => '02011110010', 'name' => 'Thipphachan'],
         ];
 
         foreach ($rows as $row) {

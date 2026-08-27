@@ -7,6 +7,10 @@ use App\Models\BuffetTier;
 use App\Models\Customer;
 use App\Models\Service;
 use App\Models\Table;
+use App\Services\QueueBoardBroadcastService;
+use App\Services\QueueSequenceService;
+use App\Support\DiningSessionTime;
+use App\Support\PhoneNumber;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,8 +22,7 @@ use Inertia\Response;
 // ແຜງຄິວ + ໂຕະ (Inertia partial reload)
 class QueueDashboardController extends Controller
 {
-    /** ຂ້າມຄົບຈຳນວນນີ້ → ຍົກເລີກຄິວອັດຕະໂນມັດ (ອອກຈາກແຜງ «ຂ້າມແລ້ວ»). */
-    private const AUTO_CANCEL_AFTER_SKIP_COUNT = 2;
+    public function __construct(private readonly QueueBoardBroadcastService $queueBoardBroadcast) {}
 
     /** @var array<int, Service>|null ບໍລິການ in_service ຍັງບໍ່ຊຳລະ ຕໍ່ໂຕະ (ແຄຊຕໍ່ request). */
     private ?array $activeUnpaidServiceMapCache = null;
@@ -64,6 +67,7 @@ class QueueDashboardController extends Controller
             'skippedQueue' => fn () => $this->skippedQueuePayload(),
             'availableTables' => fn () => $this->availableTablesPayload(),
             'buffetTiers' => fn () => BuffetTier::query()->orderBy('id')->get(['id', 'tier_name', 'price']),
+            'diningSessionHours' => DiningSessionTime::sessionHours(),
         ]);
     }
 
@@ -115,6 +119,7 @@ class QueueDashboardController extends Controller
                                 'capacity' => $t->capacity,
                                 'readiness' => $readiness,
                                 'status' => 'maintenance',
+                                'is_vip_zone' => $t->isVipZone(),
                                 'occupied_detail' => null,
                             ];
                         }
@@ -129,6 +134,7 @@ class QueueDashboardController extends Controller
                                 'capacity' => $t->capacity,
                                 'readiness' => $readiness,
                                 'status' => 'occupied',
+                                'is_vip_zone' => $t->isVipZone(),
                                 'occupied_detail' => $activeBooking ? [
                                     'booking_id' => $activeBooking->id,
                                     'queue_no' => $activeBooking->queue_no,
@@ -136,7 +142,7 @@ class QueueDashboardController extends Controller
                                     'phone' => $activeBooking->phone ?? $activeBooking->customer?->phone ?? '',
                                     'guest_count' => $activeBooking->guest_count,
                                     'buffet_tier' => $activeBooking->buffetTier?->tier_name ?? '',
-                                    'service_code' => $svc->service_code,
+                                    'service_id' => $svc->id,
                                     'check_in_at' => $svc->start_time?->toIso8601String(),
                                 ] : null,
                             ];
@@ -148,6 +154,7 @@ class QueueDashboardController extends Controller
                             'capacity' => $t->capacity,
                             'readiness' => $readiness,
                             'status' => 'available',
+                            'is_vip_zone' => $t->isVipZone(),
                             'occupied_detail' => null,
                         ];
                     })->all(),
@@ -157,16 +164,51 @@ class QueueDashboardController extends Controller
             ->all();
     }
 
-    // ຄິວລໍຖ້າ (ຍັງບໍ່ມີໂຕະ) — ລຽງ FIFO: ເກົ່າສຸດຢູ່ເທິງ, ໃໝ່ສຸດຢູ່ລຸ່ມ (queued_at ↑, id ↑)
+    // ຄິວລໍຖ້າ (ຍັງບໍ່ມີໂຕະ) — ຖືກເອີ້ນຢູ່ເທິງ, ຫຼັງນັ້ນ FIFO
     private function waitingQueuePayload(): array
     {
-        return $this->orderedDashboardQueuePayload(Booking::query()->dashboardWaitingToday());
+        $today = now()->toDateString();
+
+        // ຄິວເອີ້ນຈາກລາຍການ «ຂ້າມແລ້ວ» (skip_count > 0) ສະແດງໃນຄອລຳຂ້າມຢ່າງດຽວ — ບໍ່ດັງຂຶ້ນເທິງຄິວລໍຖ້າ.
+        $calling = Booking::query()
+            ->whereDate('expected_time', $today)
+            ->where('status', Booking::STATUS_CALLING)
+            ->whereNull('table_id')
+            ->where(function ($q): void {
+                $q->whereNull('skip_count')->orWhere('skip_count', 0);
+            })
+            ->with(['customer', 'buffetTier'])
+            ->orderByDesc('called_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (Booking $b): array => $this->queueEntry($b))
+            ->all();
+
+        $waiting = $this->orderedDashboardQueuePayload(Booking::query()->dashboardWaitingToday());
+
+        return array_merge($calling, $waiting);
     }
 
-    // ຄິວທີ່ຂ້າມແລ້ວ — FIFO ດຽວກັບຄິວລໍຖ້າ (ເກົ່າສຸດເທິງ)
+    // ຄິວທີ່ຂ້າມແລ້ວ — FIFO; ຄິວທີ່ເອີ້ນຄືນຈາກຂ້າມ (calling + skip_count > 0) ຢູ່ເທິງກຸ່ມນີ້ ບໍ່ໄປຄິວລໍຖ້າ.
     private function skippedQueuePayload(): array
     {
-        return $this->orderedDashboardQueuePayload(Booking::query()->dashboardSkippedToday());
+        $today = now()->toDateString();
+
+        $callingFromSkipped = Booking::query()
+            ->whereDate('expected_time', $today)
+            ->where('status', Booking::STATUS_CALLING)
+            ->whereNull('table_id')
+            ->where('skip_count', '>', 0)
+            ->with(['customer', 'buffetTier'])
+            ->orderByDesc('called_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (Booking $b): array => $this->queueEntry($b))
+            ->all();
+
+        $skippedOnly = $this->orderedDashboardQueuePayload(Booking::query()->dashboardSkippedToday());
+
+        return array_merge($callingFromSkipped, $skippedOnly);
     }
 
     /** ລາຍການຄິວໃນແຜງ: eager load + ລຽງ queued_at/id ກົງກັນທຸກປະເພດຄິວ. */
@@ -185,16 +227,21 @@ class QueueDashboardController extends Controller
     // ແຖວຄິວໃຫ້ໜ້າ React
     private function queueEntry(Booking $b): array
     {
-        return [
+        $row = [
             'id' => $b->id,
             'queue_no' => $b->queue_no,
+            'is_vip' => (bool) ($b->is_vip ?? false),
             'customer_name' => $b->customer_name ?? $b->customer?->name ?? '',
             'group_size' => $b->guest_count,
             'phone' => $b->phone ?? $b->customer?->phone ?? '',
             'buffet_type' => $b->buffetTier->tier_name,
+            'status' => $b->status,
             'skip_count' => (int) ($b->skip_count ?? 0),
             'queued_at' => $b->queued_at?->toIso8601String(),
+            'called_at' => $b->called_at?->toIso8601String(),
         ];
+
+        return $row;
     }
 
     // ໂຕະຫວ່າງ (ເລືອກຕອນຈັບຄິວ): ພ້ອມໃຊ້ງານ + ບໍ່ມີບໍລິການຄ້າງຊຳລະເທິ່ງໂຕະນີ້
@@ -216,6 +263,7 @@ class QueueDashboardController extends Controller
                 'table_no' => $t->table_no,
                 'capacity' => $t->capacity,
                 'zone' => $t->zone,
+                'is_vip_zone' => $t->isVipZone(),
             ])
             ->values()
             ->all();
@@ -223,22 +271,29 @@ class QueueDashboardController extends Controller
 
     public function storeQueue(Request $request): RedirectResponse
     {
-        $data = $request->validate([
-            'customer_name' => ['required', 'string', 'max:100'],
-            'phone' => ['required', 'string', 'regex:/^[0-9]{8,15}$/'],
-            'guest_count' => ['required', 'integer', 'min:1', 'max:20'],
-            'tier_id' => ['required', 'integer', 'exists:buffet_tiers,id'],
-        ], [
-            'phone.regex' => 'ເບີໂທຕ້ອງເປັນເລກເທົ່ານັ້ນ (8–15 ຫຼັກ).',
-            'guest_count.max' => 'ຈຳນວນຄົນສູງສຸດ 20 ທ່ານຕໍ່ຄິວ.',
+        $request->merge([
+            'phone' => PhoneNumber::digits((string) $request->input('phone', '')),
         ]);
 
-        $customerId = Customer::query()->where('phone', $data['phone'])->value('id');
+        $data = $request->validate([
+            'customer_name' => ['required', 'string', 'max:100'],
+            'phone' => PhoneNumber::rules(),
+            'guest_count' => ['required', 'integer', 'min:1', 'max:20'],
+            'tier_id' => ['required', 'integer', 'exists:buffet_tiers,id'],
+            'is_vip' => ['sometimes', 'boolean'],
+        ], array_merge(PhoneNumber::messages(), [
+            'guest_count.max' => 'ຈຳນວນຄົນສູງສຸດ 20 ທ່ານຕໍ່ຄິວ.',
+        ]));
 
-        DB::transaction(function () use ($data, $customerId): void {
+        $customerId = Customer::query()->where('phone', $data['phone'])->value('id');
+        $isVip = (bool) ($data['is_vip'] ?? false);
+
+        $booking = null;
+
+        DB::transaction(function () use ($data, $customerId, $isVip, &$booking): void {
             $expectedTime = now()->addHour();
-            // queue_no ຈຳກັດ 10 ຕົວໃນ DB — ບໍ່ໃຊ້ uniqid ຍາວ; ຄ່າຊົ່ວຄາວສັ້ນ ກ່ອນປ່ຽນເປັນ Q+id ຫຼັງ insert.
-            $tempQueueNo = 'T'.strtoupper(substr(bin2hex(random_bytes(5)), 0, 9));
+            $queueDay = $expectedTime->toDateString();
+            $queueNo = QueueSequenceService::allocateNextQueueNo($queueDay, $isVip);
 
             $booking = Booking::query()->create([
                 'customer_id' => $customerId !== null ? (int) $customerId : null,
@@ -246,37 +301,71 @@ class QueueDashboardController extends Controller
                 'phone' => $data['phone'],
                 'tier_id' => $data['tier_id'],
                 'table_id' => null,
-                'queue_no' => $tempQueueNo,
-                'queue_day' => $expectedTime->toDateString(),
+                'queue_no' => $queueNo,
+                'is_vip' => $isVip,
+                'queue_day' => $queueDay,
                 'guest_count' => $data['guest_count'],
                 'expected_time' => $expectedTime,
                 'queued_at' => now(),
                 'status' => 'waiting',
                 'skip_count' => 0,
             ]);
-
-            $booking->forceFill([
-                'queue_no' => 'Q'.str_pad((string) $booking->id, 4, '0', STR_PAD_LEFT),
-            ])->save();
         });
+
+        $booking?->load('buffetTier');
+
+        Inertia::flash([
+            'print_queue_ticket' => [
+                'restaurant_name' => 'OSHINEI',
+                'queue_no' => $booking?->queue_no,
+                'is_vip' => (bool) ($booking?->is_vip ?? false),
+                'guest_count' => (int) ($booking?->guest_count ?? 0),
+                'buffet_tier' => $booking?->buffetTier?->tier_name ?? '—',
+                'booking_type' => 'Walk-in',
+                'printed_at' => now()->toIso8601String(),
+            ],
+        ]);
 
         return back()->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
 
+    public function callQueue(Request $request, Booking $booking): RedirectResponse
+    {
+        $this->ensureCallable($booking);
+
+        if ($booking->status === Booking::STATUS_CALLING) {
+            $booking->update(['called_at' => now()]);
+        } else {
+            $booking->update([
+                'status' => Booking::STATUS_CALLING,
+                'called_at' => now(),
+            ]);
+        }
+
+        $this->queueBoardBroadcast->dispatch();
+
+        return back()->with('success', 'ເອີ້ນຄິວແລ້ວ');
+    }
+
     public function skipQueue(Request $request, Booking $booking): RedirectResponse
     {
+        $wasCalling = $booking->status === Booking::STATUS_CALLING;
         $this->ensureSkippable($booking);
 
         DB::transaction(function () use ($booking): void {
             $booking->increment('skip_count');
             $booking->refresh();
 
-            if ((int) $booking->skip_count >= self::AUTO_CANCEL_AFTER_SKIP_COUNT) {
+            if ((int) $booking->skip_count >= Booking::AUTO_CANCEL_AFTER_SKIP_COUNT) {
                 $booking->update(['status' => 'cancelled']);
             } else {
                 $booking->update(['status' => 'skipped']);
             }
         });
+
+        if ($wasCalling) {
+            $this->queueBoardBroadcast->dispatch();
+        }
 
         return back()->with('success', 'ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
     }
@@ -285,7 +374,12 @@ class QueueDashboardController extends Controller
     {
         $this->ensureCancellableQueue($booking);
 
+        $wasCalling = $booking->status === Booking::STATUS_CALLING;
         $booking->update(['status' => 'cancelled']);
+
+        if ($wasCalling) {
+            $this->queueBoardBroadcast->dispatch();
+        }
 
         return back();
     }
@@ -321,7 +415,9 @@ class QueueDashboardController extends Controller
 
         $this->ensureAssignableForTable($booking);
 
+        $occupiedTableIds = Service::activeUnpaidOccupiedTableIdSet();
         $capacityTotal = 0;
+        $bookingIsVip = (bool) ($booking->is_vip ?? false);
         foreach ($selectedTableIds as $tableId) {
             $table = $tables->get($tableId);
             if (! $table instanceof Table) {
@@ -334,8 +430,16 @@ class QueueDashboardController extends Controller
                     'table_id' => 'ມີບາງໂຕະຍັງບໍ່ພ້ອມໃຊ້ງານ.',
                 ]);
             }
+            $tableIsVip = $table->isVipZone();
+            if ($tableIsVip !== $bookingIsVip) {
+                throw ValidationException::withMessages([
+                    'table_id' => $bookingIsVip
+                        ? 'ຄິວ VIP ຕ້ອງຈັບກັບໂຕະໂຊນ VIP ເທົ່ານັ້ນ.'
+                        : 'ຄິວທຳມະດາບໍ່ສາມາດໃຊ້ໂຕະໂຊນ VIP ໄດ້.',
+                ]);
+            }
             // ເຊັກວ່າໂຕະຫວ່າງຕາມບໍລິການ (ບໍ່ໃຊ້ usage_status ຢ່າງດຽວ) ເພື່ອບໍ່ສັບສົນກັບສະຖານະຮ່າງກາຍໂຕະ.
-            if ($table->hasActiveUnpaidService()) {
+            if (isset($occupiedTableIds[$tableId])) {
                 throw ValidationException::withMessages([
                     'table_id' => 'ມີບາງໂຕະມີລູກຄ້າ/ບໍລິການຢູ່ແລ້ວ.',
                 ]);
@@ -349,7 +453,9 @@ class QueueDashboardController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($booking, $tables, $selectedTableIds): void {
+        $service = null;
+
+        DB::transaction(function () use ($booking, $tables, $selectedTableIds, &$service): void {
             foreach ($selectedTableIds as $tableId) {
                 $table = $tables->get($tableId);
                 if ($table instanceof Table) {
@@ -364,8 +470,38 @@ class QueueDashboardController extends Controller
                 'called_at' => $booking->called_at ?? now(),
             ]);
             $booking->refresh();
-            Service::ensureOpenSessionForSeatedBooking($booking, $selectedTableIds);
+            $service = Service::ensureOpenSessionForSeatedBooking($booking, $selectedTableIds);
         });
+
+        $booking->load('buffetTier');
+        $sessionHours = DiningSessionTime::sessionHours();
+        $startTime = $service?->start_time ?? now();
+        $endTime = DiningSessionTime::projectedEnd($startTime, $sessionHours);
+        $primaryTableId = $selectedTableIds[0] ?? null;
+        $primaryTable = $primaryTableId !== null ? $tables->get((int) $primaryTableId) : null;
+        $zoneLine = ($primaryTable instanceof Table && $primaryTable->isVipZone()) ? 'VIP Room' : 'Standard';
+        $tableNos = collect($selectedTableIds)
+            ->map(fn (int $id): ?string => $tables->get($id)?->table_no)
+            ->filter()
+            ->values()
+            ->all();
+
+        $this->queueBoardBroadcast->dispatch();
+
+        Inertia::flash([
+            'print_service_paper' => [
+                'table_no' => $tableNos[0] ?? '—',
+                'table_nos' => $tableNos,
+                'queue_no' => $booking->queue_no,
+                'service_id' => $service?->id,
+                'buffet_tier' => $booking->buffetTier?->tier_name ?? '—',
+                'guest_count' => (int) $booking->guest_count,
+                'zone' => $zoneLine,
+                'start_time' => $startTime->toIso8601String(),
+                'end_time' => $endTime->toIso8601String(),
+                'session_hours' => $sessionHours,
+            ],
+        ]);
 
         return back();
     }
@@ -395,47 +531,60 @@ class QueueDashboardController extends Controller
 
     private function ensureSkippable(Booking $booking): void
     {
-        if ($booking->table_id !== null) {
-            throw ValidationException::withMessages([
-                'booking' => 'ຄິວນີ້ບໍ່ສາມາດຂ້າມໄດ້.',
-            ]);
-        }
-
-        if (! in_array($booking->status, [...Booking::STATUSES_WAITLIST, 'skipped'], true)) {
-            throw ValidationException::withMessages([
-                'booking' => 'ຄິວນີ້ບໍ່ສາມາດຂ້າມໄດ້.',
-            ]);
-        }
+        $this->assertQueueHasNoTable($booking, 'ຄິວນີ້ບໍ່ສາມາດຂ້າມໄດ້.');
+        $this->assertQueueStatus(
+            $booking,
+            [...Booking::STATUSES_WAITLIST, 'skipped', Booking::STATUS_CALLING],
+            'ຄິວນີ້ບໍ່ສາມາດຂ້າມໄດ້.'
+        );
     }
 
     private function ensureCancellableQueue(Booking $booking): void
     {
-        if ($booking->table_id !== null) {
-            throw ValidationException::withMessages([
-                'booking' => 'ຄິວນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.',
-            ]);
-        }
-
-        if (! in_array($booking->status, [...Booking::STATUSES_WAITLIST, 'skipped'], true)) {
-            throw ValidationException::withMessages([
-                'booking' => 'ຄິວນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.',
-            ]);
-        }
+        $this->assertQueueHasNoTable($booking, 'ຄິວນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.');
+        $this->assertQueueStatus(
+            $booking,
+            [...Booking::STATUSES_WAITLIST, 'skipped', Booking::STATUS_CALLING],
+            'ຄິວນີ້ບໍ່ສາມາດຍົກເລີກໄດ້.'
+        );
     }
 
     // ກວດວ່າຄິວນີ້ນັ່ງໂຕະໄດ້ (ລໍຖ້າ / ຂ້າມ, ຍັງບໍ່ມີໂຕະ)
     private function ensureAssignableForTable(Booking $booking): void
     {
-        if ($booking->table_id !== null) {
-            throw ValidationException::withMessages([
-                'booking' => 'ຄິວນີ້ບໍ່ສາມາດດຳເນີນການໄດ້.',
-            ]);
-        }
+        $this->assertQueueHasNoTable($booking, 'ຄິວນີ້ບໍ່ສາມາດດຳເນີນການໄດ້.');
+        $this->assertQueueStatus(
+            $booking,
+            [...Booking::STATUSES_WAITLIST, 'skipped', Booking::STATUS_CALLING],
+            'ຄິວນີ້ບໍ່ສາມາດດຳເນີນການໄດ້.'
+        );
+    }
 
-        if (! in_array($booking->status, [...Booking::STATUSES_WAITLIST, 'skipped'], true)) {
-            throw ValidationException::withMessages([
-                'booking' => 'ຄິວນີ້ບໍ່ສາມາດດຳເນີນການໄດ້.',
-            ]);
+    private function ensureCallable(Booking $booking): void
+    {
+        $this->assertQueueHasNoTable($booking, 'ຄິວນີ້ບໍ່ສາມາດເອີ້ນໄດ້.');
+        // ລໍຖ້າ ຫຼື ຂ້າມແລ້ວ → ເອີ້ນຄືນເຂົ້າ calling; calling ຢູ່ແລ້ວ ອັບເດດ called_at ຄືນ.
+        $this->assertQueueStatus(
+            $booking,
+            [...Booking::STATUSES_WAITLIST, 'skipped', Booking::STATUS_CALLING],
+            'ຄິວນີ້ບໍ່ສາມາດເອີ້ນໄດ້.'
+        );
+    }
+
+    private function assertQueueHasNoTable(Booking $booking, string $message): void
+    {
+        if ($booking->table_id !== null) {
+            throw ValidationException::withMessages(['booking' => $message]);
+        }
+    }
+
+    /**
+     * @param  list<string>  $allowedStatuses
+     */
+    private function assertQueueStatus(Booking $booking, array $allowedStatuses, string $message): void
+    {
+        if (! in_array($booking->status, $allowedStatuses, true)) {
+            throw ValidationException::withMessages(['booking' => $message]);
         }
     }
 }

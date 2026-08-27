@@ -15,10 +15,18 @@ class Table extends Model
 
     public $timestamps = false;
 
+    protected function casts(): array
+    {
+        return [
+            'is_vip_zone' => 'boolean',
+        ];
+    }
+
     protected $fillable = [
         'table_no',
         'capacity',
         'zone',
+        'is_vip_zone',
         'readiness',
         'usage_status',
     ];
@@ -36,6 +44,16 @@ class Table extends Model
     public function services(): BelongsToMany
     {
         return $this->belongsToMany(Service::class, 'service_detail', 'table_id', 'service_id');
+    }
+
+    /** VIP ໂຕະໂຊນພິເສດ (ຄວາມຄືກັບ zone = vip ແຕ່ຊັດເຈນກວ່າໃນ logic). */
+    public function isVipZone(): bool
+    {
+        if ((bool) ($this->is_vip_zone ?? false)) {
+            return true;
+        }
+
+        return ($this->zone ?? '') === 'vip';
     }
 
     /**

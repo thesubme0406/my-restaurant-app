@@ -28,7 +28,7 @@ const managerMenus = [
     { key: 'stock-in', label: 'ນຳເຂົ້າວັດຖຸດິບ', href: '/admin/import', icon: Download },
     { key: 'payments', label: 'ຊຳລະເງິນ', href: '/admin/payments', icon: CreditCard },
     { key: 'reports', label: 'ລາຍງານ', href: '/admin/reports', icon: FileText },
-    { key: 'queue-board', label: 'ບອດຄິວໜ້າຮ້ານ', href: '/admin/queue-board', icon: Monitor },
+    { key: 'queue-board', label: 'ບອດຄິວໜ້າຮ້ານ', href: '/queue-board', icon: Monitor, external: true },
     { key: 'profile', label: 'ຈັດການໂປຣໄຟລ', href: '/admin/profile', icon: UserRound },
 ];
 
@@ -60,7 +60,19 @@ function NavLinks({ menus, currentPath, onNavigate }) {
                 const Icon = menu.icon;
                 const isActive = currentPath === menu.href || currentPath.startsWith(`${menu.href}/`);
 
-                return (
+                return menu.external ? (
+                    <a
+                        key={menu.key}
+                        href={menu.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={onNavigate ?? undefined}
+                        className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+                    >
+                        <Icon className="h-5 w-5 shrink-0 opacity-90" strokeWidth={1.75} />
+                        <span>{menu.label}</span>
+                    </a>
+                ) : (
                     <Link
                         key={menu.key}
                         href={menu.href}
@@ -113,10 +125,10 @@ export default function AdminLayout({ children, title }) {
     const brandLogoSrc = '/images/oshinei-logo.png';
 
     return (
-        <div className="min-h-screen bg-slate-100 font-lao text-slate-900">
-            <div className="flex min-h-screen">
+        <div className="h-screen overflow-hidden bg-slate-100 font-lao text-slate-900">
+            <div className="flex h-full">
                 <aside
-                    className="no-print hidden w-64 shrink-0 flex-col md:flex"
+                    className="no-print hidden h-full w-64 shrink-0 flex-col overflow-y-auto md:flex"
                     style={{ backgroundColor: brandBlue }}
                 >
                     <div className="flex items-center gap-3 border-b border-white/10 px-5 py-6">
@@ -140,7 +152,7 @@ export default function AdminLayout({ children, title }) {
                 </aside>
 
                 <div
-                    className={`fixed inset-0 z-50 md:hidden ${mobileNavOpen ? '' : 'pointer-events-none'}`}
+                    className={`fixed inset-0 z-50 md:hidden no-print ${mobileNavOpen ? '' : 'pointer-events-none'}`}
                     aria-hidden={!mobileNavOpen}
                 >
                     <button
@@ -184,7 +196,7 @@ export default function AdminLayout({ children, title }) {
                     </aside>
                 </div>
 
-                <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
                     <header className="no-print flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-3 shadow-sm sm:px-6 md:px-8">
                         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                             <button

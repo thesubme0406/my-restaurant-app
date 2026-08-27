@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Booking;
 use App\Models\BuffetTier;
 use App\Models\Menu;
 use App\Models\MenuCatg;
 use App\Models\Payment;
 use App\Models\Service;
+use App\Services\Reports\QueueBookingReportService;
+use App\Services\Reports\QueueStatisticsReportService;
+use App\Support\PaymentMethod;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -19,6 +22,11 @@ use Inertia\Response;
 
 class ReportController extends Controller
 {
+    public function __construct(
+        private readonly QueueStatisticsReportService $queueStatisticsReport,
+        private readonly QueueBookingReportService $queueBookingReport,
+    ) {}
+
     /**
      * @return list<string>
      */
@@ -51,7 +59,8 @@ class ReportController extends Controller
      *     queue_status: string,
      *     search_query: string,
      *     purchase_status: string,
-     *     supplier_id: string
+     *     supplier_id: string,
+     *     zone: string
      * }
      */
     private function parseReportQuery(Request $request): array
@@ -59,6 +68,11 @@ class ReportController extends Controller
         $type = (string) $request->query('type', 'income');
         if (! in_array($type, $this->allowedTypes(), true)) {
             $type = 'income';
+        }
+
+        $zone = (string) $request->query('zone', '');
+        if ($zone !== '' && ! in_array($zone, ['standard', 'vip'], true)) {
+            $zone = '';
         }
 
         return [
@@ -73,6 +87,7 @@ class ReportController extends Controller
             'search_query' => (string) $request->query('search_query', ''),
             'purchase_status' => (string) $request->query('purchase_status', 'all'),
             'supplier_id' => (string) $request->query('supplier_id', 'all'),
+            'zone' => $zone,
         ];
     }
 
@@ -92,7 +107,7 @@ class ReportController extends Controller
             $q['search_query'],
             $q['purchase_status'],
             $q['supplier_id'],
-            ''
+            $q['zone'],
         );
 
         return Inertia::render('Admin/Reports', [
@@ -107,6 +122,7 @@ class ReportController extends Controller
             'initialSearchQuery' => $q['search_query'],
             'initialPurchaseStatus' => $q['purchase_status'],
             'initialSupplierId' => $q['supplier_id'],
+            'initialTableZone' => $q['zone'],
             'menuCategories' => $this->menuCategoryOptions(),
             'buffetTiers' => $this->buffetTierOptions(),
             'supplierOptions' => $this->supplierOptions(),
@@ -131,7 +147,7 @@ class ReportController extends Controller
             $q['search_query'],
             $q['purchase_status'],
             $q['supplier_id'],
-            ''
+            $q['zone'],
         ));
     }
 
@@ -152,17 +168,18 @@ class ReportController extends Controller
         string $searchQuery = '',
         string $purchaseStatus = 'all',
         string $supplierId = 'all',
+        string $tableZone = '',
     ): array {
         if ($type === 'income') {
-            return $this->incomePayload($from, $to, $paymentMethod, $tierId);
+            return $this->incomePayload($from, $to, $paymentMethod, $tierId, $tableZone);
         }
 
         if ($type === 'queue_statistics') {
-            return $this->queueStatisticsPayload($from, $to, $queueStatus);
+            return $this->queueStatisticsReport->build($from, $to, $queueStatus);
         }
 
         if (in_array($type, ['queue_booking', 'queue_progress'], true)) {
-            return $this->bookingReportPayload($from, $to);
+            return $this->queueBookingReport->build($from, $to, $tableZone);
         }
 
         if ($type === 'menu') {
@@ -182,7 +199,7 @@ class ReportController extends Controller
         }
 
         if ($type === 'service') {
-            return $this->serviceReportPayload($from, $to, $tierId, $queueStatus);
+            return $this->serviceReportPayload($from, $to, $tierId, $queueStatus, $tableZone);
         }
 
         return [
@@ -194,17 +211,22 @@ class ReportController extends Controller
     /**
      * ລາຍງານລາຍຮັບ — ກັ່ນຕອງຕາມປະເພດການຊຳລະ ແລະ ບຸບເຟ້; ສະຫຼຸບຍອດລວມກົງກັບແຖວທີ່ກັ່ນແລ້ວ.
      *
-     * @param  'all'|'cash'|'transfer'  $paymentMethod
+     * @param  'all'|PaymentMethod::*  $paymentMethod
      * @param  'all'|numeric-string  $tierId
+     * @param  ''|'standard'|'vip'  $tableZone
      * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
      */
-    private function incomePayload(string $from, string $to, string $paymentMethod = 'all', string $tierId = 'all'): array
+    private function incomePayload(string $from, string $to, string $paymentMethod = 'all', string $tierId = 'all', string $tableZone = ''): array
     {
         $fromDate = Carbon::parse($from)->startOfDay();
         $toDate = Carbon::parse($to)->endOfDay();
 
-        $methodNorm = in_array($paymentMethod, ['cash', 'transfer'], true) ? $paymentMethod : 'all';
+        $methodNorm = PaymentMethod::isValid($paymentMethod) ? $paymentMethod : 'all';
         $tierNorm = ($tierId !== '' && $tierId !== 'all' && is_numeric($tierId)) ? (int) $tierId : null;
+        $zoneNorm = strtolower(trim($tableZone));
+        if ($zoneNorm !== '' && ! in_array($zoneNorm, ['standard', 'vip'], true)) {
+            $zoneNorm = '';
+        }
 
         $query = Payment::query()
             ->selectRaw('payments.id as payment_id, payments.payment_time, payments.method, payments.total_amount')
@@ -227,6 +249,8 @@ class ReportController extends Controller
             $query->where('bookings.tier_id', $tierNorm);
         }
 
+        $this->applyIncomeReportTableZoneFilter($query, $zoneNorm);
+
         $rows = $query
             ->orderByDesc('payments.payment_time')
             ->get()
@@ -248,234 +272,72 @@ class ReportController extends Controller
             ->values()
             ->all();
 
+        $voidedQuery = Payment::query()
+            ->onlyTrashed()
+            ->join('services', 'services.id', '=', 'payments.service_id')
+            ->join('bookings', 'bookings.id', '=', 'services.booking_id')
+            ->whereBetween('payments.payment_time', [$fromDate, $toDate]);
+
+        if ($methodNorm !== 'all') {
+            $voidedQuery->where('payments.method', $methodNorm);
+        }
+
+        if ($tierNorm !== null) {
+            $voidedQuery->where('bookings.tier_id', $tierNorm);
+        }
+
+        $this->applyIncomeReportTableZoneFilter($voidedQuery, $zoneNorm);
+
         return [
             'rows' => $rows,
             'summary' => [
                 'total' => array_sum(array_column($rows, 'total_amount')),
                 'count' => count($rows),
+                'voided_total' => (float) $voidedQuery->sum('payments.total_amount'),
+                'voided_count' => (int) $voidedQuery->count(),
                 'label' => 'Income report',
             ],
         ];
     }
 
     /**
-     * ສະຫຼຸບສະຖິຕິຄິວແຍກຕາມສະຖານະ — ແຕ່ລະຄິວນັບ 1 ຄັ້ງ; ມື້ອ້າງອີງຕາມ queue_day / queued_at / expected_time.
+     * ກຣອງລາຍງານລາຍຮັບຕາມໂຊນໂຕະ (service_detail → tables) ກົງກັບໜ້າປະຫວັດຊຳລະ.
      *
-     * @param  'all'|'completed'|'skipped'|'cancelled'|'other'  $queueStatusFilter
-     * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
+     * @param  Builder<Payment>|\Illuminate\Database\Query\Builder  $query
      */
-    private function queueStatisticsPayload(string $from, string $to, string $queueStatusFilter = 'all'): array
+    private function applyIncomeReportTableZoneFilter($query, string $zoneNorm): void
     {
-        // ວັນທີເລີ່ມ/ສິ້ນ — ຖ້າວ່າງໃຫ້ໃຊ້ເດືອນນີ້ຄື backend ຫຼັກ
-        $fromDate = ($from !== '' && strtotime($from) !== false)
-            ? Carbon::parse($from)->startOfDay()
-            : Carbon::now()->startOfMonth()->startOfDay();
-        $toDate = ($to !== '' && strtotime($to) !== false)
-            ? Carbon::parse($to)->endOfDay()
-            : Carbon::now()->endOfDay();
-        $hasCreatedAt = Schema::hasColumn('bookings', 'created_at');
-        $bookingTimeCol = $hasCreatedAt ? 'bookings.created_at' : 'bookings.expected_time';
-        $hasQueuedAt = Schema::hasColumn('bookings', 'queued_at');
-        $hasQueueDay = Schema::hasColumn('bookings', 'queue_day');
-        $fromDateStr = $fromDate->toDateString();
-        $toDateStr = $toDate->toDateString();
-
-        // ຈັດກຸ່ມສະຖານະ: ສຳເລັດລວມທັງ completed ແລະ finished (ຫຼັງກິນຈົບ)
-        $bucket = static function (string $status): string {
-            $s = strtolower(trim($status));
-            if ($s === 'skipped') {
-                return 'skipped';
-            }
-            if ($s === 'cancelled') {
-                return 'cancelled';
-            }
-            if ($s === 'completed' || $s === 'finished') {
-                return 'completed';
-            }
-
-            return 'other';
-        };
-
-        $bookingQuery = Booking::query()
-            ->select([
-                'bookings.id',
-                'bookings.queue_no',
-                'bookings.guest_count',
-                'bookings.expected_time',
-                'bookings.status',
-            ])
-            ->when($hasQueuedAt, fn ($q) => $q->addSelect('bookings.queued_at'))
-            ->when($hasQueueDay, fn ($q) => $q->addSelect('bookings.queue_day'))
-            ->selectRaw("{$bookingTimeCol} as booking_time_raw")
-            ->selectRaw('COALESCE(customers.name, bookings.customer_name) as resolved_customer_name')
-            ->leftJoin('customers', 'customers.id', '=', 'bookings.customer_id')
-            ->when(
-                $hasQueueDay,
-                fn ($q) => $q->where(function ($q2) use ($fromDateStr, $toDateStr, $fromDate, $toDate, $bookingTimeCol): void {
-                    $q2->whereBetween('bookings.queue_day', [$fromDateStr, $toDateStr])
-                        ->orWhere(function ($q3) use ($fromDate, $toDate, $bookingTimeCol): void {
-                            $q3->whereNull('bookings.queue_day')
-                                ->whereBetween($bookingTimeCol, [$fromDate, $toDate]);
-                        });
-                }),
-                fn ($q) => $q->whereBetween($bookingTimeCol, [$fromDate, $toDate])
-            )
-            ->orderByDesc('bookings.id');
-
-        $bookings = $bookingQuery->get();
-
-        $totals = ['completed' => 0, 'skipped' => 0, 'cancelled' => 0, 'other' => 0];
-        foreach ($bookings as $b) {
-            $totals[$bucket((string) $b->status)]++;
+        if ($zoneNorm === '' || $zoneNorm === 'all') {
+            return;
         }
 
-        $statusNorm = in_array($queueStatusFilter, ['all', 'completed', 'skipped', 'cancelled', 'other'], true)
-            ? $queueStatusFilter
-            : 'all';
+        if ($zoneNorm === 'vip') {
+            $query->whereExists(function ($sub): void {
+                $sub->select(DB::raw(1))
+                    ->from('service_detail')
+                    ->join('tables', 'tables.id', '=', 'service_detail.table_id')
+                    ->whereColumn('service_detail.service_id', 'services.id')
+                    ->where(function ($q): void {
+                        $q->where('tables.is_vip_zone', true)
+                            ->orWhere('tables.zone', 'vip');
+                    });
+            });
 
-        if ($statusNorm === 'all') {
-            // ສະຫຼຸບຕໍ່ມື້: ນັບຄິວແຍກສະຖານະ (ວັນອ້າງອີງ = queue_day ຖ້າມີ)
-            $byDay = [];
-            foreach ($bookings as $b) {
-                $dayKey = $this->queueStatisticDayKey($b, $hasQueueDay, $hasQueuedAt);
-                if (! isset($byDay[$dayKey])) {
-                    $byDay[$dayKey] = [
-                        'summary_date' => $dayKey,
-                        'completed_count' => 0,
-                        'skipped_count' => 0,
-                        'cancelled_count' => 0,
-                        'other_count' => 0,
-                        'day_total' => 0,
-                    ];
-                }
-                $bk = $bucket((string) $b->status);
-                $byDay[$dayKey][$bk === 'completed' ? 'completed_count' : ($bk === 'skipped' ? 'skipped_count' : ($bk === 'cancelled' ? 'cancelled_count' : 'other_count'))]++;
-                $byDay[$dayKey]['day_total']++;
-            }
-            krsort($byDay);
-            $rows = array_map(static function (array $row): array {
-                return [
-                    'summary_date' => $row['summary_date'],
-                    'completed_count' => (int) $row['completed_count'],
-                    'skipped_count' => (int) $row['skipped_count'],
-                    'cancelled_count' => (int) $row['cancelled_count'],
-                    'other_count' => (int) $row['other_count'],
-                    'day_total' => (int) $row['day_total'],
-                ];
-            }, array_values($byDay));
-        } else {
-            // ສະຫຼຸບຕໍ່ມື້ສະເພາະສະຖານະທີ່ເລືອກ — ສະແດງແຕ່ຕົວເລກ (ຈຳນວນຄິວ/ມື້)
-            $byDay = [];
-            foreach ($bookings as $b) {
-                if ($bucket((string) $b->status) !== $statusNorm) {
-                    continue;
-                }
-                $dayKey = $this->queueStatisticDayKey($b, $hasQueueDay, $hasQueuedAt);
-                if (! isset($byDay[$dayKey])) {
-                    $byDay[$dayKey] = [
-                        'summary_date' => $dayKey,
-                        'status_count' => 0,
-                    ];
-                }
-                $byDay[$dayKey]['status_count']++;
-            }
-            krsort($byDay);
-            $rows = array_map(static function (array $row): array {
-                return [
-                    'summary_date' => $row['summary_date'],
-                    'status_count' => (int) $row['status_count'],
-                ];
-            }, array_values($byDay));
+            return;
         }
 
-        return [
-            'rows' => $rows,
-            'summary' => [
-                'total_queue' => $bookings->count(),
-                'completed_total' => $totals['completed'],
-                'skipped_total' => $totals['skipped'],
-                'cancelled_total' => $totals['cancelled'],
-                'other_total' => $totals['other'],
-                'non_completed' => $totals['skipped'] + $totals['cancelled'],
-                'queue_status_filter' => $statusNorm,
-                'label' => 'Queue statistics',
-            ],
-        ];
-    }
-
-    /**
-     * ວັນອ້າງອີງສຳລັບຕາຕະລາງສະຖິຕິຄິວຕໍ່ມື້ (ໃຫ້ກົງກັບ queue_day ຂອງລະບົບຄິວ)
-     */
-    private function queueStatisticDayKey(object $booking, bool $hasQueueDay, bool $hasQueuedAt): string
-    {
-        if ($hasQueueDay && ($booking->queue_day ?? null)) {
-            return Carbon::parse($booking->queue_day)->toDateString();
+        if ($zoneNorm === 'standard') {
+            $query->whereNotExists(function ($sub): void {
+                $sub->select(DB::raw(1))
+                    ->from('service_detail')
+                    ->join('tables', 'tables.id', '=', 'service_detail.table_id')
+                    ->whereColumn('service_detail.service_id', 'services.id')
+                    ->where(function ($q): void {
+                        $q->where('tables.is_vip_zone', true)
+                            ->orWhere('tables.zone', 'vip');
+                    });
+            });
         }
-        if ($hasQueuedAt && ($booking->queued_at ?? null)) {
-            return Carbon::parse($booking->queued_at)->toDateString();
-        }
-        if ($booking->expected_time ?? null) {
-            return Carbon::parse($booking->expected_time)->toDateString();
-        }
-        if (isset($booking->booking_time_raw) && $booking->booking_time_raw) {
-            return Carbon::parse($booking->booking_time_raw)->toDateString();
-        }
-
-        return '—';
-    }
-
-    /**
-     * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
-     */
-    private function bookingReportPayload(string $from, string $to): array
-    {
-        $fromDate = Carbon::parse($from)->startOfDay();
-        $toDate = Carbon::parse($to)->endOfDay();
-        $today = Carbon::today()->startOfDay();
-        $hasCreatedAt = Schema::hasColumn('bookings', 'created_at');
-
-        $rows = Booking::query()
-            ->selectRaw('bookings.id, bookings.queue_no, bookings.guest_count, bookings.expected_time, bookings.status')
-            ->selectRaw('bookings.customer_name as booking_customer_name, bookings.phone as booking_phone')
-            ->selectRaw($hasCreatedAt ? 'bookings.created_at as booking_created_at' : 'NULL as booking_created_at')
-            ->selectRaw('customers.name as customer_name, customers.phone as customer_phone')
-            ->selectRaw('buffet_tiers.tier_name')
-            ->leftJoin('customers', 'customers.id', '=', 'bookings.customer_id')
-            ->leftJoin('buffet_tiers', 'buffet_tiers.id', '=', 'bookings.tier_id')
-            ->whereDate('bookings.expected_time', '>=', $today)
-            ->whereBetween('bookings.expected_time', [$fromDate, $toDate])
-            ->orderBy('bookings.expected_time')
-            ->get()
-            ->map(function ($row): array {
-                $expectedAt = $row->expected_time ? Carbon::parse($row->expected_time) : null;
-                $status = strtolower((string) ($row->status ?? ''));
-                $createdAt = $row->booking_created_at ? Carbon::parse($row->booking_created_at) : null;
-                $displayDate = $expectedAt?->format('Y-m-d') ?? $createdAt?->format('Y-m-d') ?? 'N/A';
-                return [
-                    'queue_no' => $row->queue_no ?: ('BK-'.$row->id),
-                    'booking_date' => $displayDate,
-                    'customer_name' => $row->customer_name ?: ($row->booking_customer_name ?: 'N/A'),
-                    'guest_count' => (int) ($row->guest_count ?? 0),
-                    'tier_name' => $row->tier_name ?? 'N/A',
-                    'phone' => $row->customer_phone ?: ($row->booking_phone ?: 'N/A'),
-                    'status' => $status !== '' ? $status : 'pending',
-                ];
-            })
-            ->values()
-            ->all();
-
-        $pendingCount = count(array_filter($rows, fn ($r) => in_array($r['status'], ['pending', 'waiting'], true)));
-        $confirmedCount = count(array_filter($rows, fn ($r) => in_array($r['status'], ['confirmed', 'called', 'checked-in'], true)));
-
-        return [
-            'rows' => $rows,
-            'summary' => [
-                'total_guests' => array_sum(array_column($rows, 'guest_count')),
-                'pending_count' => $pendingCount,
-                'confirmed_count' => $confirmedCount,
-                'label' => 'Booking queue report',
-            ],
-        ];
     }
 
     /**
@@ -522,8 +384,7 @@ class ReportController extends Controller
         string $searchQuery = '',
         string $from = '',
         string $to = '',
-    ): array
-    {
+    ): array {
         $menuCategoryColumn = Schema::hasColumn('menus', 'category_id') ? 'category_id' : 'catg_id';
         $normalizedStatus = in_array($statusFilter, ['all', 'active', 'inactive'], true) ? $statusFilter : 'all';
         $tierNorm = ($tierId !== '' && $tierId !== 'all' && is_numeric($tierId)) ? (int) $tierId : null;
@@ -792,6 +653,7 @@ class ReportController extends Controller
      *
      * @param  'all'|numeric-string  $tierId
      * @param  'all'|'paid'|'unpaid'  $servicePaymentStatus
+     * @param  ''|'standard'|'vip'  $tableZone
      * @return array{rows: array<int, array<string,mixed>>, summary: array<string,mixed>}
      */
     private function serviceReportPayload(
@@ -799,11 +661,16 @@ class ReportController extends Controller
         string $to,
         string $tierId = 'all',
         string $servicePaymentStatus = 'all',
+        string $tableZone = '',
     ): array {
         $fromDate = Carbon::parse($from)->startOfDay();
         $toDate = Carbon::parse($to)->endOfDay();
         $tierNorm = ($tierId !== '' && $tierId !== 'all' && is_numeric($tierId)) ? (int) $tierId : null;
         $statusNorm = in_array($servicePaymentStatus, ['all', 'paid', 'unpaid'], true) ? $servicePaymentStatus : 'all';
+        $zoneNorm = strtolower(trim($tableZone));
+        if ($zoneNorm !== '' && ! in_array($zoneNorm, ['standard', 'vip'], true)) {
+            $zoneNorm = '';
+        }
 
         // Eager load ຄົບໃນຄັ້ງດຽວເພື່ອບໍ່ໃຊ້ N+1 ຕອນແປງແຖວ.
         $rows = Service::query()
@@ -817,6 +684,24 @@ class ReportController extends Controller
             ->when($tierNorm !== null, fn ($q) => $q->whereHas('booking', fn ($bq) => $bq->where('tier_id', $tierNorm)))
             ->when($statusNorm === 'paid', fn ($q) => $q->whereHas('payment'))
             ->when($statusNorm === 'unpaid', fn ($q) => $q->whereDoesntHave('payment'))
+            ->when($zoneNorm === 'vip', function ($q): void {
+                $q->whereHas('serviceDetails.table', function ($tableQuery): void {
+                    $tableQuery->where(function ($sub): void {
+                        $sub->where('tables.is_vip_zone', true)
+                            ->orWhere('tables.zone', 'vip');
+                    });
+                });
+            })
+            ->when($zoneNorm === 'standard', function ($q): void {
+                $q->whereDoesntHave('serviceDetails', function ($sd): void {
+                    $sd->whereHas('table', function ($tableQuery): void {
+                        $tableQuery->where(function ($sub): void {
+                            $sub->where('tables.is_vip_zone', true)
+                                ->orWhere('tables.zone', 'vip');
+                        });
+                    });
+                });
+            })
             ->orderByDesc('services.start_time')
             ->get()
             ->map(function (Service $row): array {
@@ -889,6 +774,4 @@ class ReportController extends Controller
             ->values()
             ->all();
     }
-
 }
-

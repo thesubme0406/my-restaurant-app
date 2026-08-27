@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\News;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -11,18 +12,6 @@ use Inertia\Response;
 
 class CustomerNewsController extends Controller
 {
-    private function imageUrl(?string $path): ?string
-    {
-        if ($path === null || $path === '') {
-            return null;
-        }
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        return '/storage/'.ltrim($path, '/');
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -38,7 +27,7 @@ class CustomerNewsController extends Controller
             'id' => $n->id,
             'title' => $n->title,
             'content' => $n->content,
-            'image_url' => $this->imageUrl($n->image),
+            'image_url' => PublicStorageUrl::from($n->image),
             'author_code' => $staff?->username ?? '',
             'author_name' => $authorName,
             'published_at' => $n->published_at?->toIso8601String(),

@@ -5,6 +5,7 @@ import PrimaryButton from '@/Pages/Auth/Components/PrimaryButton';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Lock, Phone } from 'lucide-react';
 import { useState } from 'react';
+import { digitsOnly, PHONE_PLACEHOLDER } from '@/utils/phoneFormat';
 
 export default function Login({ status, isStaffLogin = false, redirectTo = '' }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -63,9 +64,10 @@ export default function Login({ status, isStaffLogin = false, redirectTo = '' })
                                 label="ເບີໂທລະສັບ"
                                 type="tel"
                                 value={data.phone}
-                                onChange={(e) => setData('phone', e.target.value)}
+                                onChange={(e) => setData('phone', digitsOnly(e.target.value))}
                                 icon={Phone}
                                 autoComplete="tel"
+                                placeholder={PHONE_PLACEHOLDER}
                                 isFocused
                             />
                             <InputError message={errors.phone} className="mt-1 text-white" />
@@ -101,7 +103,7 @@ export default function Login({ status, isStaffLogin = false, redirectTo = '' })
                             <div className="text-center text-sm text-white/85">
                                 ຕ້ອງການເຂົ້າລະບົບລູກຄ້າ?{' '}
                                 <Link href={route('login')} className="font-semibold text-white underline">
-                                    ໄປທີ່ /login
+                                    Login
                                 </Link>
                             </div>
                         </form>

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\BuffetTier;
 use App\Models\Menu;
+use App\Support\PublicStorageUrl;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -13,23 +14,6 @@ use Inertia\Response;
 
 class CustomerMenuController extends Controller
 {
-    private function menuImageUrl(?string $path): ?string
-    {
-        if ($path === null || $path === '') {
-            return null;
-        }
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        return '/storage/'.ltrim($path, '/');
-    }
-
-    private function tierImageUrl(?string $path): ?string
-    {
-        return $this->menuImageUrl($path);
-    }
-
     /**
      * English subtitle for category section headers (Lao name stays from DB).
      */
@@ -92,7 +76,7 @@ class CustomerMenuController extends Controller
                                 'id' => $m->id,
                                 'name' => $m->name,
                                 'name_en' => $m->name_en ? strtoupper(trim((string) $m->name_en)) : '',
-                                'image_url' => $this->menuImageUrl($m->image),
+                                'image_url' => PublicStorageUrl::from($m->image),
                             ];
                         })->values()->all(),
                     ];
@@ -107,7 +91,7 @@ class CustomerMenuController extends Controller
                 'tier_name' => $tier->tier_name,
                 'price' => (float) $tier->price,
                 'description' => (string) ($tier->description ?? ''),
-                'image_url' => $this->tierImageUrl($tier->image),
+                'image_url' => PublicStorageUrl::from($tier->image),
                 'menu_count' => $menus->count(),
                 'categories' => $grouped,
             ];

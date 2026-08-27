@@ -3,6 +3,7 @@ import CustomerLayout from '@/Layouts/CustomerLayout';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import { Eye, EyeOff } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { digitsOnly, PHONE_PLACEHOLDER } from '@/utils/phoneFormat';
 
 const BRAND = '#004085';
 
@@ -73,9 +74,9 @@ export default function CustomerProfilePage({ profile }) {
     const letter = useMemo(() => avatarLetter(form.data.name), [form.data.name]);
 
     const inputClass =
-        'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#004085] focus:outline-none focus:ring-1 focus:ring-[#004085]/30';
+        'mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-[#004085] focus:outline-none focus:ring-1 focus:ring-[#004085]/30 sm:text-sm';
 
-    const labelClass = 'font-lao text-xs font-semibold tracking-wide';
+    const labelClass = 'font-lao text-[11px] font-semibold tracking-wide sm:text-xs';
 
     const submit = useCallback(
         (e) => {
@@ -100,10 +101,10 @@ export default function CustomerProfilePage({ profile }) {
         <CustomerLayout>
             <Head title="ໂປຣໄຟລ໌" />
 
-            <div className="space-y-4">
+            <div className="customer-page mx-auto max-w-2xl space-y-4 sm:space-y-5">
                 {flash?.success ? (
                     <div
-                        className="rounded-xl border px-3 py-2 text-center text-sm font-medium text-white"
+                        className="rounded-xl border px-3 py-2 text-center text-xs font-medium text-white sm:text-sm"
                         style={{ backgroundColor: BRAND, borderColor: BRAND }}
                         role="status"
                     >
@@ -113,7 +114,7 @@ export default function CustomerProfilePage({ profile }) {
 
                 <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200/90">
                     <div className="border-b border-slate-100 px-4 py-4">
-                        <h1 className="font-lao text-lg font-bold" style={{ color: BRAND }}>
+                        <h1 className="font-lao text-base font-bold sm:text-lg" style={{ color: BRAND }}>
                             ໂປຣໄຟລ໌ລູກຄ້າ
                         </h1>
                         <p className="font-lao mt-1 text-xs text-slate-500">ແກ້ໄຂຂໍ້ມູນບັນຊີຂອງທ່ານ</p>
@@ -121,17 +122,17 @@ export default function CustomerProfilePage({ profile }) {
 
                     <div className="flex items-center gap-4 border-b border-slate-100 px-4 py-5">
                         <div
-                            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-2xl font-bold"
+                            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-xl font-bold sm:text-2xl"
                             style={{ color: BRAND }}
                             aria-hidden
                         >
                             {letter}
                         </div>
                         <div className="min-w-0">
-                            <p className="truncate text-lg font-bold" style={{ color: BRAND }}>
+                            <p className="truncate text-base font-bold sm:text-lg" style={{ color: BRAND }}>
                                 {form.data.name || '—'}
                             </p>
-                            <p className="truncate text-sm text-slate-600">{form.data.phone || '—'}</p>
+                            <p className="truncate text-xs text-slate-600 sm:text-sm">{form.data.phone || '—'}</p>
                         </div>
                     </div>
 
@@ -160,8 +161,10 @@ export default function CustomerProfilePage({ profile }) {
                                 id="profile-phone"
                                 type="tel"
                                 name="phone"
+                                inputMode="numeric"
+                                placeholder={PHONE_PLACEHOLDER}
                                 value={form.data.phone}
-                                onChange={(e) => form.setData('phone', e.target.value)}
+                                onChange={(e) => form.setData('phone', digitsOnly(e.target.value))}
                                 className={inputClass}
                                 autoComplete="tel"
                             />
@@ -241,7 +244,7 @@ export default function CustomerProfilePage({ profile }) {
                         <button
                             type="submit"
                             disabled={form.processing}
-                            className="font-lao w-full rounded-lg py-3 text-center text-base font-bold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60"
+                            className="font-lao w-full rounded-lg py-3 text-center text-sm font-bold text-white shadow-sm transition hover:opacity-95 disabled:opacity-60 sm:text-base"
                             style={{ backgroundColor: BRAND }}
                         >
                             {form.processing ? 'ກຳລັງບັນທຶກ…' : 'ບັນທຶກຂໍ້ມູນ'}

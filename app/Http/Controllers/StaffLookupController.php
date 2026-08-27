@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Staff;
+use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -11,9 +12,9 @@ class StaffLookupController extends Controller
     // ຄົ້ນຫາພະນັກງານຕາມເບີ → JSON ໃຫ້ຟອມເຕີມຊື່
     public function __invoke(Request $request): JsonResponse
     {
-        $phone = preg_replace('/\D+/', '', (string) $request->query('phone', '')) ?? '';
+        $phone = PhoneNumber::digits((string) $request->query('phone', ''));
 
-        if (strlen($phone) < 8 || strlen($phone) > 15) {
+        if (! PhoneNumber::isValid($phone)) {
             return response()->json([
                 'matched' => false,
                 'name' => null,

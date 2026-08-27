@@ -33,31 +33,45 @@ class StockInController extends Controller
         $latestCostByIngId = self::latestImportCostByIngredientId($ingIds);
 
         $purchaseOrders = $orders->map(fn (PurchaseOrder $po): array => [
-                'id' => $po->id,
-                'po_no' => str_pad((string) $po->id, 3, '0', STR_PAD_LEFT),
-                'po_date' => $po->po_date?->format('d/m/y'),
-                'supplier_name' => $po->supplier?->sup_name ?? '—',
-                'po_status' => $po->po_status,
-                'item_count' => $po->poDetails->count(),
-                'is_imported' => in_array($po->po_status, ['Received', 'Completed'], true) && $po->stockIn !== null,
-                'items' => $po->poDetails->map(fn ($d): array => [
+            'id' => $po->id,
+            'po_no' => str_pad((string) $po->id, 3, '0', STR_PAD_LEFT),
+            'po_date' => $po->po_date?->format('d/m/y'),
+            'supplier_name' => $po->supplier?->sup_name ?? '—',
+            'po_status' => $po->po_status,
+            'item_count' => $po->poDetails->count(),
+            'is_imported' => in_array($po->po_status, ['Received', 'Completed'], true) && $po->stockIn !== null,
+            'imported_at' => $po->stockIn?->import_date?->toIso8601String(),
+            'items' => $po->poDetails->map(fn ($d): array => [
+                'ing_id' => $d->ing_id,
+                'ing_name' => $d->ingredient?->ing_name ?? '—',
+                'ing_unit' => $d->ingredient?->ing_unit ?? '',
+                'quantity' => (float) $d->quantity,
+                'cost_price' => $latestCostByIngId->get($d->ing_id, '0'),
+            ])->values()->all(),
+            'imported_items' => $po->stockIn
+                ? $po->stockIn->stockInDetails->map(fn ($d): array => [
                     'ing_id' => $d->ing_id,
                     'ing_name' => $d->ingredient?->ing_name ?? '—',
                     'ing_unit' => $d->ingredient?->ing_unit ?? '',
                     'quantity' => (float) $d->quantity,
-                    'cost_price' => $latestCostByIngId->get($d->ing_id, '0'),
-                ])->values()->all(),
-                'imported_items' => $po->stockIn
-                    ? $po->stockIn->stockInDetails->map(fn ($d): array => [
-                        'ing_id' => $d->ing_id,
-                        'ing_name' => $d->ingredient?->ing_name ?? '—',
-                        'ing_unit' => $d->ingredient?->ing_unit ?? '',
-                        'quantity' => (float) $d->quantity,
-                        'cost_price' => (float) $d->cost_price,
-                    ])->values()->all()
-                    : [],
-                'imported_total_price' => $po->stockIn ? (float) $po->stockIn->total_price : 0,
-            ])
+                    'cost_price' => (float) $d->cost_price,
+                ])->values()->all()
+                : [],
+            'imported_total_price' => $po->stockIn ? (float) $po->stockIn->total_price : 0,
+        ])
+            ->sort(function (array $a, array $b): int {
+                $aImported = (int) $a['is_imported'];
+                $bImported = (int) $b['is_imported'];
+                if ($aImported !== $bImported) {
+                    return $aImported <=> $bImported;
+                }
+                if ($aImported === 1) {
+                    return strcmp((string) ($a['imported_at'] ?? ''), (string) ($b['imported_at'] ?? ''));
+                }
+
+                return $b['id'] <=> $a['id'];
+            })
+            ->values()
             ->all();
 
         return Inertia::render('Admin/Import', [
@@ -113,7 +127,7 @@ class StockInController extends Controller
             'po_id' => ['required', 'integer', 'exists:purchase_orders,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.ing_id' => ['required', 'integer', 'exists:ingredients,id'],
-            'items.*.quantity' => ['required', 'numeric', 'gt:0'],
+            'items.*.quantity' => ['required', 'numeric', 'min:0'],
             'items.*.cost_price' => ['required', 'numeric', 'gte:0'],
         ]);
 
@@ -156,10 +170,15 @@ class StockInController extends Controller
                     'cost_price' => $item['cost_price'],
                 ]);
 
-                // ເພີ່ມສະຕ໋ອກວັດຖຸດິບຕາມຈຳນວນທີ່ນຳເຂົ້າ
+                $qty = (float) $item['quantity'];
+                if ($qty <= 0) {
+                    continue;
+                }
+
+                // ເພີ່ມສະຕ໋ອກວັດຖຸດິບຕາມຈຳນວນທີ່ນຳເຂົ້າ (ຂ້າມລາຍການທີ່ສົ່ງມາ 0 = ບໍ່ມີການສົ່ງມອບ)
                 Ingredient::query()
                     ->whereKey($item['ing_id'])
-                    ->increment('ing_quantity', (float) $item['quantity']);
+                    ->increment('ing_quantity', $qty);
             }
 
             $po->update(['po_status' => 'Received']);

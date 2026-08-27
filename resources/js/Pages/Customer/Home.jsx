@@ -49,15 +49,15 @@ function BuffetTierCard({ tier }) {
 
             <div className="relative flex h-full flex-col items-center justify-between px-4 pb-5 pt-6 text-center">
                 <div>
-                    <p className="font-serif text-[11px] font-semibold uppercase tracking-[0.35em] text-white/95">Oshinei Buffet</p>
-                    <p className="mt-0.5 text-xs font-semibold tracking-wide text-white/70">{tier.tier_name}</p>
+                    <p className="font-serif text-[9px] font-semibold uppercase tracking-[0.35em] text-white/95 sm:text-[11px]">Oshinei Buffet</p>
+                    <p className="mt-0.5 text-[10px] font-semibold tracking-wide text-white/70 sm:text-xs">{tier.tier_name}</p>
                 </div>
 
                 <div className="flex flex-wrap items-baseline justify-center gap-x-1 gap-y-0">
                     <span className="text-[clamp(2.25rem,10vw,3.25rem)] font-black leading-none tracking-tight text-[#e8c547] drop-shadow-sm">
                         {formatPriceDigits(tier.price)}
                     </span>
-                    <span className="text-sm font-bold text-white/90">ກີບ</span>
+                    <span className="text-xs font-bold text-white/90 sm:text-sm">ກີບ</span>
                 </div>
             </div>
 
@@ -134,7 +134,7 @@ export default function CustomerHomePage({
         <CustomerLayout>
             <Head title="Oshinei First Page" />
 
-            <div className="relative isolate space-y-6 py-2 lg:space-y-10 lg:py-6">
+            <div className="customer-page relative isolate space-y-5 py-1 sm:space-y-6 md:space-y-8 md:py-2">
                 {/* ພື້ນຫຼັງລາຍບາງໆ ແຕ່ເຫັນໄດ້ຊັດ */}
                 <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 rounded-3xl" style={oshineiInline.heroBackdrop} />
                 <div
@@ -144,7 +144,7 @@ export default function CustomerHomePage({
                 />
                 <section className="relative overflow-hidden rounded-2xl bg-white/95 shadow-md ring-1 ring-oshinei-navy/10">
                     <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.08]" style={oshineiInline.heroDots} />
-                    <div className="relative h-64 lg:h-[500px]">
+                    <div className="relative h-52 sm:h-64 md:h-80 lg:h-[420px]">
                         <img
                             src="/images/foodshowing.jpg?v=1"
                             alt="Oshinei premium Japanese food"
@@ -155,9 +155,9 @@ export default function CustomerHomePage({
                             {/* ແຖບ glass ໂປ່ງໃສຄຸມຕະຫຼອດຂອບລຸ່ມຂອງຮູບ */}
                             <div className="flex items-center justify-between gap-3 rounded-b-2xl border-t border-white/35 bg-white/20 px-3 py-2.5 backdrop-blur-md sm:px-4 sm:py-3 lg:px-6 lg:py-3.5">
                                 <div>
-                                    <p className="text-base font-extrabold text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.55)] lg:text-2xl">
+                                    <p className="text-sm font-extrabold text-white [text-shadow:0_2px_10px_rgba(0,0,0,0.55)] sm:text-base lg:text-2xl">
                                         ຄິວລໍຖ້າປັດຈຸບັນ{' '}
-                                        <span className="text-3xl text-oshinei-ice lg:text-5xl">{String(waitingQueueCount).padStart(3, '0')}</span>{' '}
+                                        <span className="text-2xl text-oshinei-ice sm:text-3xl lg:text-5xl">{String(waitingQueueCount).padStart(3, '0')}</span>{' '}
                                         ຄິວ
                                     </p>
                                     {nowLabel ? (
@@ -175,7 +175,7 @@ export default function CustomerHomePage({
                                 <button
                                     type="button"
                                     onClick={promptLoginForBooking}
-                                    className={`inline-flex h-10 min-w-[118px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-4 text-2xl font-extrabold leading-none text-white shadow-[0_10px_24px_rgba(25,76,159,0.42)] ring-1 ring-white/35 sm:h-11 sm:min-w-[130px] sm:px-5 sm:text-[2rem] ${oshineiCtaPressable}`}
+                                    className={`inline-flex h-10 min-w-[118px] shrink-0 items-center justify-center rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-4 text-lg font-extrabold leading-none text-white shadow-[0_10px_24px_rgba(25,76,159,0.42)] ring-1 ring-white/35 sm:h-11 sm:min-w-[130px] sm:px-5 sm:text-2xl lg:text-[2rem] ${oshineiCtaPressable}`}
                                 >
                                     ຈອງຄິວ
                                 </button>
@@ -192,12 +192,12 @@ export default function CustomerHomePage({
                     />
                     <div className="relative z-10 mb-5 flex items-center justify-between gap-3">
                         <div>
-                            <p className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-oshinei-navy/70">Oshinei Signature</p>
-                            <h2 className="text-2xl font-extrabold text-oshinei-navy lg:text-3xl">ເມນູບຸບເຟ່</h2>
+                            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.2em] text-oshinei-navy/70 sm:text-xs">Oshinei Signature</p>
+                            <h2 className="text-xl font-extrabold text-oshinei-navy sm:text-2xl lg:text-3xl">ເມນູບຸບເຟ່</h2>
                         </div>
                         <Link
                             href={route('customer.menu')}
-                            className={`inline-flex h-10 shrink-0 items-center rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-4 text-sm font-bold text-white shadow-[0_8px_18px_rgba(25,76,159,0.35)] ring-1 ring-white/30 ${oshineiCtaPressable}`}
+                            className={`inline-flex h-10 shrink-0 items-center rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-4 text-xs font-bold text-white shadow-[0_8px_18px_rgba(25,76,159,0.35)] ring-1 ring-white/30 sm:text-sm ${oshineiCtaPressable}`}
                         >
                             ເບິ່ງທັງໝົດ
                             <span aria-hidden className="ml-1 text-xs font-black">
@@ -206,7 +206,7 @@ export default function CustomerHomePage({
                         </Link>
                     </div>
                     {buffetTiersWithMenus.length === 0 ? (
-                        <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-sm text-slate-600">ຍັງບໍ່ມີຂໍ້ມູນປະເພດບຸບເຟ່.</p>
+                        <p className="rounded-xl bg-slate-50 px-3 py-4 text-center text-xs text-slate-600 sm:text-sm">ຍັງບໍ່ມີຂໍ້ມູນປະເພດບຸບເຟ່.</p>
                     ) : (
                         <div className="relative">
                             <div
@@ -231,7 +231,7 @@ export default function CustomerHomePage({
 
                 <section className="relative overflow-hidden rounded-2xl bg-white/95 p-4 shadow-md ring-1 ring-oshinei-navy/10 lg:p-6 lg:py-12">
                     <div aria-hidden className="pointer-events-none absolute inset-0 rounded-2xl opacity-[0.08]" style={oshineiInline.promoDots} />
-                    <h2 className="mb-4 text-xl font-extrabold tracking-tight text-oshinei-navy lg:text-2xl">
+                    <h2 className="mb-4 text-lg font-extrabold tracking-tight text-oshinei-navy sm:text-xl lg:text-2xl">
                         ໂປຣໂມຊັ່ນ ແລະ ແຈ້ງການ
                     </h2>
                     <div className="relative">
@@ -254,7 +254,7 @@ export default function CustomerHomePage({
                                 <SwiperSlide key={`promo-${idx}`}>
                                     <Link
                                         href={route('customer.news')}
-                                        className="block h-52 min-h-[360px] overflow-hidden rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-oshinei-navy focus-visible:ring-offset-2 lg:min-h-[480px]"
+                                        className="block h-44 overflow-hidden rounded-xl sm:h-52 md:h-64 lg:h-[360px] focus:outline-none focus-visible:ring-2 focus-visible:ring-oshinei-navy focus-visible:ring-offset-2"
                                     >
                                         <img src={img} alt={`Promotion ${idx + 1}`} className="h-full w-full object-cover object-center" />
                                     </Link>
@@ -265,7 +265,7 @@ export default function CustomerHomePage({
                     <div className="mt-3 text-center">
                         <Link
                             href={route('customer.news')}
-                            className={`inline-flex rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-5 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_rgba(25,76,159,0.3)] ring-1 ring-white/35 ${oshineiCtaPressable}`}
+                            className={`inline-flex rounded-xl bg-gradient-to-b from-oshinei-cta-from to-oshinei-cta-to px-5 py-2 text-xs font-semibold text-white shadow-[0_8px_20px_rgba(25,76,159,0.3)] ring-1 ring-white/35 sm:text-sm ${oshineiCtaPressable}`}
                         >
                             ລາຍລະອຽດເພີ່ມເຕີມ
                         </Link>
@@ -282,16 +282,16 @@ export default function CustomerHomePage({
                         aria-hidden
                         className="pointer-events-none absolute bottom-0 right-24 h-24 w-24 rounded-full border-4 border-[#e8c547]/40"
                     />
-                    <div className="relative z-10 flex items-end justify-between gap-4">
-                        <div className="relative z-10 pl-2 sm:pl-4 lg:pl-8">
-                            <h3 className="text-4xl font-extrabold leading-none tracking-tight text-oshinei-navy lg:text-6xl">ຈອງກ່ອນ</h3>
-                            <h3 className="text-4xl font-extrabold leading-none tracking-tight text-oshinei-navy lg:text-6xl">ແຊບກ່ອນ</h3>
-                            <p className="mt-3 max-w-md text-sm font-medium text-slate-600">ສະແກນຈອງຄິວໄວ້ລ່ວງໜ້າໄດ້ທຸກມື້</p>
+                    <div className="relative z-10 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+                        <div className="relative z-10 pl-0 sm:pl-2 md:pl-4 lg:pl-8">
+                            <h3 className="text-xl font-extrabold leading-none tracking-tight text-oshinei-navy sm:text-2xl md:text-3xl lg:text-5xl xl:text-6xl">ຈອງກ່ອນ</h3>
+                            <h3 className="text-xl font-extrabold leading-none tracking-tight text-oshinei-navy sm:text-2xl md:text-3xl lg:text-5xl xl:text-6xl">ແຊບກ່ອນ</h3>
+                            <p className="mt-3 max-w-md text-xs font-medium text-slate-600 sm:text-sm">ສະແກນຈອງຄິວໄວ້ລ່ວງໜ້າໄດ້ທຸກມື້</p>
                         </div>
                         <button
                             type="button"
                             onClick={promptLoginForBooking}
-                            className={`inline-flex h-14 items-center rounded-xl bg-gradient-to-b from-oshinei-cta-strong-from to-oshinei-cta-strong-to px-7 text-xl font-extrabold text-white shadow-[0_10px_26px_rgba(25,76,159,0.4)] ring-1 ring-white/35 ${oshineiCtaPressable}`}
+                            className={`inline-flex h-12 items-center rounded-xl bg-gradient-to-b from-oshinei-cta-strong-from to-oshinei-cta-strong-to px-5 text-base font-extrabold text-white shadow-[0_10px_26px_rgba(25,76,159,0.4)] ring-1 ring-white/35 sm:h-14 sm:px-7 sm:text-xl ${oshineiCtaPressable}`}
                         >
                             ຈອງຄິວ
                         </button>
@@ -302,8 +302,8 @@ export default function CustomerHomePage({
             {loginPromptOpen ? (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/45 px-4">
                     <div className="w-full max-w-sm rounded-2xl border border-white/25 bg-oshinei-navy p-5 text-white shadow-2xl">
-                        <h3 className="text-lg font-bold">ຕ້ອງການເຂົ້າລະບົບ</h3>
-                        <p className="mt-2 text-sm text-white/90">
+                        <h3 className="text-base font-bold sm:text-lg">ຕ້ອງການເຂົ້າລະບົບ</h3>
+                        <p className="mt-2 text-xs text-white/90 sm:text-sm">
                             ກະລຸນາເຂົ້າສູ່ລະບົບກ່ອນເພື່ອທຳການຈອງຄິວ
                         </p>
                         <div className="mt-4 flex justify-end gap-2">

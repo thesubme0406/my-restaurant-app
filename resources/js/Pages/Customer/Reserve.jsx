@@ -16,6 +16,8 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import CustomerLayout from '@/Layouts/CustomerLayout';
+import { digitsOnly, isValidPhone, PHONE_PLACEHOLDER, PHONE_VALIDATION_MESSAGE } from '@/utils/phoneFormat';
+import QueueMonitorSection, { formatQueueNoDisplay } from './Reserve/QueueMonitorSection';
 
 function statusBadge(status) {
     if (status === 'cancelled') {
@@ -30,17 +32,12 @@ function statusBadge(status) {
     if (status === 'pending' || status === 'waiting') {
         return 'ກຳລັງລໍຄິວ';
     }
+    if (status === 'calling') {
+        return 'ຖືກເອີ້ນແລ້ວ';
+    }
     return 'ກຳລັງດຳເນີນການ';
 }
 
-const DEFAULT_PHONE_REGEX = /^020\d{8}$/;
-
-function formatQueueNoDisplay(queueNo) {
-    if (!queueNo) return '';
-    const m = String(queueNo).match(/^Q-?(\d+)$/i);
-    if (!m) return String(queueNo);
-    return `Q-${String(m[1]).padStart(3, '0')}`;
-}
 
 function QueueDetailStatusPill({ status }) {
     if (status === 'cancelled') {
@@ -64,6 +61,14 @@ function QueueDetailStatusPill({ status }) {
             <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 ສຳເລັດແລ້ວ
+            </span>
+        );
+    }
+    if (status === 'calling') {
+        return (
+            <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                <Clock3 className="h-3.5 w-3.5" />
+                ຖືກເອີ້ນແລ້ວ
             </span>
         );
     }
@@ -94,14 +99,14 @@ function ConfirmModal({ open, queueNo, onCancel, onConfirm, loading }) {
                 <div className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-600">
                     <AlertTriangle className="h-6 w-6" />
                 </div>
-                <h3 className="text-center text-lg font-extrabold text-slate-900">ຢືນຢັນການຍົກເລີກຄິວ</h3>
-                <p className="mt-2 text-center text-sm text-slate-600">ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການຍົກເລີກຄິວ {queueNo} ນີ້?</p>
+                <h3 className="text-center text-base font-extrabold text-slate-900 sm:text-lg">ຢືນຢັນການຍົກເລີກຄິວ</h3>
+                <p className="mt-2 text-center text-xs text-slate-600 sm:text-sm">ທ່ານແນ່ໃຈບໍ່ວ່າຕ້ອງການຍົກເລີກຄິວ {queueNo} ນີ້?</p>
                 <div className="mt-4 grid grid-cols-2 gap-2">
                     <button
                         type="button"
                         onClick={onCancel}
                         disabled={loading}
-                        className="rounded-xl bg-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                        className="rounded-xl bg-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 disabled:opacity-50 sm:text-sm"
                     >
                         ກັບຄືນ
                     </button>
@@ -109,7 +114,7 @@ function ConfirmModal({ open, queueNo, onCancel, onConfirm, loading }) {
                         type="button"
                         onClick={onConfirm}
                         disabled={loading}
-                        className="rounded-xl bg-rose-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        className="rounded-xl bg-rose-600 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 sm:text-sm"
                     >
                         {loading ? 'ກຳລັງດຳເນີນການ...' : 'ຢືນຢັນຍົກເລີກ'}
                     </button>
@@ -121,8 +126,7 @@ function ConfirmModal({ open, queueNo, onCancel, onConfirm, loading }) {
 
 export default function ReservePage({
     waiting_count = 0,
-    estimated_wait_minutes = 0,
-    queue_flow = { now_serving: null, up_next: [], ahead_of_you: null, progress_pct: 0, is_called: false },
+    queue_flow = { now_serving: null, now_calling: null, up_next: [], waiting_rows: [], ahead_of_you: null, progress_pct: 0, is_called: false },
     active_queues = [],
     booking_history = [],
     buffet_tiers = [],
@@ -130,7 +134,6 @@ export default function ReservePage({
 }) {
     const [clock, setClock] = useState(new Date());
     const [waitingCount, setWaitingCount] = useState(waiting_count);
-    const [estimatedWait, setEstimatedWait] = useState(estimated_wait_minutes);
     const [queueFlow, setQueueFlow] = useState(queue_flow);
     const [currentQueues, setCurrentQueues] = useState(active_queues);
     const [history, setHistory] = useState(booking_history);
@@ -156,6 +159,7 @@ export default function ReservePage({
         guest_count: 1,
         tier_id: buffet_tiers?.[0]?.id ?? '',
         booking_date: new Date().toISOString().slice(0, 10),
+        zone_choice: 'standard',
     });
 
     const refreshStats = async () => {
@@ -166,8 +170,7 @@ export default function ReservePage({
         if (!response.ok) return;
         const data = await response.json();
         setWaitingCount(data.waiting_count ?? 0);
-        setEstimatedWait(data.estimated_wait_minutes ?? 0);
-        setQueueFlow(data.queue_flow ?? { now_serving: null, up_next: [], ahead_of_you: null, progress_pct: 0, is_called: false });
+        setQueueFlow(data.queue_flow ?? { now_serving: null, now_calling: null, up_next: [], waiting_rows: [], ahead_of_you: null, progress_pct: 0, is_called: false });
         setCurrentQueues(Array.isArray(data.active_queues) ? data.active_queues : []);
         setHistory(Array.isArray(data.booking_history) ? data.booking_history : []);
     };
@@ -231,8 +234,8 @@ export default function ReservePage({
         if (!String(form.customer_name ?? '').trim()) {
             errors.customer_name = 'ກະລຸນາລະບຸຊື່ລູກຄ້າ';
         }
-        if (!DEFAULT_PHONE_REGEX.test(String(form.phone ?? ''))) {
-            errors.phone = 'ເບີໂທຕ້ອງຢູ່ໃນຮູບແບບ 020xxxxxxxx';
+        if (!isValidPhone(form.phone ?? '')) {
+            errors.phone = PHONE_VALIDATION_MESSAGE;
         }
         if (!form.tier_id) {
             errors.tier_id = 'ກະລຸນາເລືອກປະເພດບຸບເຟ່';
@@ -260,6 +263,7 @@ export default function ReservePage({
                 guest_count: form.guest_count,
                 tier_id: form.tier_id,
                 booking_date: form.booking_date,
+                is_vip: form.zone_choice === 'vip_room',
             };
             const response = await window.axios.post(route('customer.reserve.store'), payload, {
                 headers: {
@@ -323,44 +327,74 @@ export default function ReservePage({
         }
     };
 
+    const nowCallingNo = queueFlow?.now_calling?.queue_no ?? queueFlow?.now_serving ?? null;
+    const waitingRows = Array.isArray(queueFlow?.waiting_rows) ? queueFlow.waiting_rows : [];
+
     return (
         <CustomerLayout>
             <Head title="ຈອງຄິວ" />
 
-            <div className="space-y-3">
-                <h1 className="text-center text-3xl font-extrabold text-slate-900">ຈອງຄິວຮ້ານໂອຊິເນ</h1>
-                {successMessage && <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-700">{successMessage}</div>}
-                {errorMessage && <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700">{errorMessage}</div>}
-
-                <section className="rounded-xl bg-[#194c9f] p-4 text-white shadow-sm">
-                    <p className="text-center text-5xl font-extrabold tracking-widest">{digitalClock}</p>
-                    <p className="mt-1 text-center text-sm">{dayLabel}</p>
-
-                    <div className="mx-auto mt-3 flex h-36 w-36 flex-col items-center justify-center rounded-full border border-white/80">
-                        <p className="text-5xl font-bold">{String(waitingCount).padStart(3, '0')}</p>
-                        <p className="text-sm">ຄິວລໍຖ້າ</p>
+            <div className="customer-page w-full min-w-0 space-y-5 sm:space-y-6 md:space-y-7">
+                <h1 className="mx-auto max-w-3xl px-1 text-center text-xl font-extrabold leading-snug text-slate-900 sm:text-2xl md:text-3xl">
+                    ຈອງຄິວຮ້ານໂອຊິເນ
+                </h1>
+                {successMessage && (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 sm:px-5 sm:text-base">
+                        {successMessage}
                     </div>
+                )}
+                {errorMessage && (
+                    <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800 sm:px-5 sm:text-base">
+                        {errorMessage}
+                    </div>
+                )}
 
-                    <p className="mt-3 text-center text-sm">~{estimatedWait}ນາທີ ລໍຖ້າໂດຍປະມານ</p>
-                    <div className="mt-3 text-center">
-                        <button
-                            type="button"
-                            onClick={() => setShowBookingModal(true)}
-                            className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xl font-bold text-[#194c9f]"
+                <section className="w-full min-w-0 max-w-full rounded-2xl bg-gradient-to-br from-[#194c9f] via-[#1b4190] to-[#153d82] p-5 text-white shadow-xl ring-1 ring-white/15 sm:p-7 md:p-9">
+                    <div className="mx-auto flex max-w-lg flex-col items-center gap-6 sm:gap-7 md:max-w-none md:gap-8">
+                        <div className="text-center">
+                            <p className="text-2xl font-extrabold tabular-nums tracking-wide text-white sm:text-3xl md:text-4xl">
+                                {digitalClock}
+                            </p>
+                            <p className="mt-1.5 text-sm font-medium text-white/85 sm:text-base">{dayLabel}</p>
+                        </div>
+
+                        <div
+                            className="flex aspect-square w-[min(100%,12.5rem)] max-w-[12.5rem] flex-col items-center justify-center gap-2 rounded-full border-2 border-white/90 bg-white/10 px-3 py-4 shadow-[inset_0_2px_24px_rgba(0,0,0,0.12)] backdrop-blur-[2px] sm:w-[13.5rem] sm:max-w-[13.5rem] sm:gap-2.5 sm:py-5 md:w-[14rem] md:max-w-[14rem]"
+                            aria-live="polite"
+                            aria-label={`ຈຳນວນຄິວລໍຖ້າ ${waitingCount}`}
                         >
-                            + ຈອງຄິວໃໝ່
-                        </button>
+                            <p className="whitespace-nowrap text-center text-[clamp(2.5rem,11vw,4.25rem)] font-black leading-none tabular-nums text-white">
+                                {String(waitingCount).padStart(3, '0')}
+                            </p>
+                            <p className="max-w-[10rem] text-center text-[11px] font-semibold uppercase tracking-[0.12em] text-white/90 sm:text-xs">
+                                ຄິວລໍຖ້າ
+                            </p>
+                        </div>
+
+                        <div className="w-full px-2 sm:flex sm:justify-center sm:px-0">
+                            <button
+                                type="button"
+                                onClick={() => setShowBookingModal(true)}
+                                className="touch-target inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 text-base font-bold text-[#194c9f] shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition hover:brightness-[1.03] active:scale-[0.99] sm:w-auto sm:min-w-[12rem] sm:py-3"
+                            >
+                                + ຈອງຄິວໃໝ່
+                            </button>
+                        </div>
                     </div>
                 </section>
 
                 {currentQueues.length === 0 && (
-                    <p className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm text-slate-600 shadow-sm" style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}>
-                        ທ່ານຍັງບໍ່ມີຄິວລໍຖ້າ — ກົດ <span className="font-semibold text-[#194c9f]">+ ຈອງຄິວໃໝ່</span> ເທິງກາດສີຟ້າເພື່ອຈອງ.
+                    <p
+                        className="break-words rounded-xl border border-slate-200/90 bg-white px-4 py-4 text-center text-sm leading-relaxed text-slate-600 shadow-sm sm:px-6 sm:py-5 sm:text-base"
+                        style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
+                    >
+                        ທ່ານຍັງບໍ່ມີຄິວລໍຖ້າ — ກົດ{' '}
+                        <span className="font-semibold text-[#194c9f]">+ ຈອງຄິວໃໝ່</span> ເທິງກາດສີຟ້າເພື່ອຈອງ.
                     </p>
                 )}
 
                 {currentQueues.length > 0 && (
-                    <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                    <div className="max-h-[min(24rem,55vh)] space-y-3 overflow-y-auto overscroll-contain pr-1 sm:max-h-80 queue-scroll-panel">
                         {currentQueues.map((queue) => (
                             <section
                                 key={queue.id}
@@ -377,24 +411,23 @@ export default function ReservePage({
                                         setDetailQueue(queue);
                                     }
                                 }}
-                                className="flex cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-md outline-none ring-[#194c9f] transition hover:border-slate-300 focus-visible:ring-2"
+                                className="flex min-w-0 cursor-pointer items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-md outline-none ring-[#194c9f] transition hover:border-slate-300 focus-visible:ring-2"
                                 style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
                             >
                                 <div className="flex items-center gap-3">
                                     <div className="rounded-lg bg-[#194c9f]/10 p-2">
                                         <Ticket className="h-5 w-5 text-[#194c9f]" />
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-slate-500">ຄິວຂອງທ່ານ</p>
-                                        <p className="text-3xl font-extrabold text-slate-900">{queue.queue_no}</p>
-                                        <p className="text-xs text-slate-500">{queue.guest_count} ຄົນ</p>
+                                    <div className="min-w-0">
+                                        <p className="text-sm text-slate-600 sm:text-base">ຄິວຂອງທ່ານ</p>
+                                        <p className="text-xl font-extrabold tabular-nums text-slate-900 sm:text-2xl md:text-3xl">
+                                            {queue.is_vip ? <span className="mr-1 inline-block text-lg sm:text-xl">👑</span> : null}
+                                            {queue.queue_no}
+                                        </p>
+                                        <p className="mt-0.5 text-sm text-slate-500 sm:text-base">{queue.guest_count} ຄົນ</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
-                                        <CheckCircle2 className="h-3.5 w-3.5 text-[#194c9f]" />
-                                        ~{queue.estimated_wait_time ?? estimatedWait}
-                                    </span>
                                     <button
                                         type="button"
                                         onClick={(event) => {
@@ -403,10 +436,10 @@ export default function ReservePage({
                                             setShowCancelModal(true);
                                         }}
                                         disabled={canceling}
-                                        className="rounded-full text-rose-500 disabled:opacity-50"
+                                        className="touch-target inline-flex items-center justify-center rounded-full text-rose-500 disabled:opacity-50"
                                         aria-label={`Cancel queue ${queue.queue_no}`}
                                     >
-                                        <XCircle className="h-8 w-8" />
+                                        <XCircle className="h-7 w-7 sm:h-8 sm:w-8" />
                                     </button>
                                 </div>
                             </section>
@@ -414,67 +447,11 @@ export default function ReservePage({
                     </div>
                 )}
 
-                {/* ເພີ່ມ Dashboard ສະແດງລຳດັບຄິວແບບ Real-time */}
-                <section className="my-4 overflow-hidden rounded-2xl border border-[#194c9f]/20 bg-gradient-to-br from-[#123d84] via-[#194c9f] to-[#2158b0] p-4 text-white shadow-xl ring-1 ring-[#194c9f]/25">
-                    <div className="mb-3 flex items-center justify-between">
-                        <div>
-                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/75">Queue Monitor</p>
-                            <h3 className="text-xl font-extrabold">ສະຖານະຄິວປະຈຸບັນ</h3>
-                        </div>
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200/40 bg-emerald-400/15 px-2.5 py-1 text-xs font-bold text-emerald-100">
-                            <span className="inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-300" />
-                            Live
-                        </span>
-                    </div>
+                <QueueMonitorSection queueFlow={queueFlow} waitingRows={waitingRows} nowCallingNo={nowCallingNo} />
 
-                    {/* ສະແດງຄິວທີ່ກຳລັງເອີ້ນ ແລະ ຄິວຕໍ່ໄປເພື່ອໃຫ້ລູກຄ້າຕິດຕາມໄດ້ງ່າຍ */}
-                    <div className="rounded-xl border border-white/20 bg-white/10 px-3 py-3 backdrop-blur-sm">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-white/70">ກຳລັງເອີ້ນ</p>
-                        <p className={`mt-1 text-4xl font-black tracking-wide ${queueFlow?.is_called ? 'text-[#ffe082]' : 'text-white'}`}>
-                            {formatQueueNoDisplay(queueFlow?.now_serving) || '—'}
-                        </p>
-                    </div>
-
-                    <div className="mt-3 rounded-xl border border-white/15 bg-white/5 p-3">
-                        <p className="mb-2 text-sm font-semibold text-white/90">ຄິວຖັດໄປ</p>
-                        <div className="flex gap-2 overflow-x-auto pb-1">
-                            {(queueFlow?.up_next ?? []).length > 0 ? (
-                                (queueFlow.up_next ?? []).map((queueNo) => (
-                                    <span
-                                        key={queueNo}
-                                        className="inline-flex shrink-0 rounded-lg border border-white/30 bg-white/95 px-3 py-1.5 text-sm font-extrabold text-[#194c9f] shadow-sm"
-                                    >
-                                        {formatQueueNoDisplay(queueNo)}
-                                    </span>
-                                ))
-                            ) : (
-                                <span className="text-sm text-white/70">ຍັງບໍ່ມີຄິວຕໍ່ໄປ</span>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="mt-3 rounded-xl border border-white/15 bg-white/10 px-3 py-3 backdrop-blur-sm">
-                        <p className="text-sm font-semibold text-white">
-                            {typeof queueFlow?.ahead_of_you === 'number'
-                                ? `ອີກ ${queueFlow.ahead_of_you} ຄິວ ຈຶ່ງຈະເຖິງຄິວຂອງທ່ານ`
-                                : 'ຍັງບໍ່ມີຄິວຂອງທ່ານໃນລະບົບ'}
-                        </p>
-                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-white/25">
-                            <div
-                                className={`h-full rounded-full transition-all duration-500 ${
-                                    queueFlow?.is_called
-                                        ? 'bg-gradient-to-r from-[#ffe082] to-[#e8c547]'
-                                        : 'bg-gradient-to-r from-white to-[#cfe0ff]'
-                                }`}
-                                style={{ width: `${Math.max(0, Math.min(100, Number(queueFlow?.progress_pct ?? 0)))}%` }}
-                            />
-                        </div>
-                    </div>
-                </section>
-
-                <section className="space-y-2">
-                    <h2 className="text-2xl font-extrabold text-slate-900">ປະຫວັດການຈອງຄິວ</h2>
-                    <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+                <section className="space-y-3">
+                    <h2 className="text-lg font-extrabold text-slate-900 sm:text-xl md:text-2xl">ປະຫວັດການຈອງຄິວ</h2>
+                    <div className="max-h-[min(26rem,58vh)] space-y-3 overflow-y-auto overscroll-contain pr-1 sm:max-h-96 queue-scroll-panel">
                     {history.map((row) => (
                         <article
                             key={row.id}
@@ -495,10 +472,10 @@ export default function ReservePage({
                             style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
                         >
                             <div className="flex items-center gap-3">
-                                <div className="rounded-lg bg-[#194c9f]/10 px-2 py-1 text-xl font-bold text-[#194c9f]">{row.queue_no}</div>
+                                <div className="rounded-lg bg-[#194c9f]/10 px-2 py-1 text-base font-bold text-[#194c9f] sm:text-lg md:text-xl">{row.queue_no}</div>
                                 <div className="min-w-0 flex-1">
                                     <div className="flex items-start justify-between gap-3">
-                                        <p className="truncate text-lg font-bold text-slate-900">{row.customer_name}</p>
+                                        <p className="truncate text-base font-bold text-slate-900 sm:text-lg">{row.customer_name}</p>
                                         <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">{statusBadge(row.status)}</span>
                                     </div>
                                     <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
@@ -520,7 +497,7 @@ export default function ReservePage({
                         </article>
                     ))}
                     {history.length === 0 && (
-                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-sm text-slate-500">
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-6 text-center text-xs text-slate-500 sm:text-sm">
                             ຍັງບໍ່ມີປະຫວັດການຈອງຄິວ
                         </div>
                     )}
@@ -529,22 +506,34 @@ export default function ReservePage({
             </div>
 
             {showBookingModal && (
-                <div className="fixed inset-0 z-50 flex items-end bg-slate-900/40">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/45 p-0 sm:p-4 lg:items-center">
                     <button type="button" className="absolute inset-0" aria-label="Close booking modal" onClick={() => setShowBookingModal(false)} />
-                    <section className="relative z-10 w-full rounded-t-3xl bg-white p-4 shadow-2xl">
-                        <div className="mx-auto mb-3 h-1.5 w-16 rounded-full bg-slate-300" />
-                        <div className="mb-4 flex items-center justify-between">
-                            <h2 className="text-3xl font-extrabold text-[#194c9f]">ຈອງຄິວ</h2>
-                            <button type="button" onClick={() => setShowBookingModal(false)} className="rounded-full p-1 text-[#194c9f]">
-                                <X className="h-7 w-7" />
+                    <section
+                        className="relative z-10 flex max-h-[min(92dvh,760px)] w-full flex-col overflow-hidden rounded-t-3xl border border-slate-200/90 bg-white shadow-[0_-12px_48px_rgba(15,23,42,0.18)] sm:max-w-lg sm:rounded-2xl sm:shadow-2xl lg:max-w-xl"
+                        style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
+                    >
+                        <div className="mx-auto mb-1 mt-3 h-1.5 w-14 shrink-0 rounded-full bg-slate-300/90 lg:hidden" />
+                        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-2 sm:px-6 sm:pb-7 lg:px-8 lg:pb-8 lg:pt-4">
+                        <div className="mb-5 flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+                            <div>
+                                <h2 className="text-xl font-extrabold text-[#194c9f] sm:text-2xl">ຈອງຄິວ</h2>
+                                <p className="mt-1 text-xs text-slate-500 sm:text-sm">ກະລຸນາກວດຄືນຂໍ້ມູນກ່ອນຢືນຢັນ</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowBookingModal(false)}
+                                className="-mr-1 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#194c9f] transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#194c9f]"
+                                aria-label="ປິດ"
+                            >
+                                <X className="h-6 w-6" />
                             </button>
                         </div>
 
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             <div>
-                                <label className="mb-1 block text-sm font-semibold text-slate-600">ຊື່ລູກຄ້າ</label>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700 sm:text-sm">ຊື່ລູກຄ້າ</label>
                                 {profileNameTrimmed ? (
-                                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base text-slate-900">
+                                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-2.5 text-sm text-slate-900 shadow-inner sm:text-base">
                                         <p className="font-semibold">{profileNameTrimmed}</p>
                                         <Link
                                             href={route('customer.profile')}
@@ -557,50 +546,53 @@ export default function ReservePage({
                                     <input
                                         value={form.customer_name}
                                         onChange={(event) => onFormField('customer_name', event.target.value)}
-                                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base"
+                                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-[#194c9f] focus:outline-none focus:ring-2 focus:ring-[#194c9f]/20 sm:text-base"
                                     />
                                 )}
                                 {formErrors.customer_name && <p className="mt-1 text-xs text-rose-600">{formErrors.customer_name}</p>}
                             </div>
 
                             <div>
-                                <label className="mb-1 block text-sm font-semibold text-slate-600">ເບີໂທລະສັບ</label>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700 sm:text-sm">ເບີໂທລະສັບ</label>
                                 <input
                                     value={form.phone}
-                                    onChange={(event) => onFormField('phone', event.target.value.replace(/\D/g, '').slice(0, 11))}
-                                    placeholder="020xxxxxxxx"
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base"
+                                    onChange={(event) => onFormField('phone', digitsOnly(event.target.value))}
+                                    placeholder={PHONE_PLACEHOLDER}
+                                    inputMode="numeric"
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-[#194c9f] focus:outline-none focus:ring-2 focus:ring-[#194c9f]/20 sm:text-base"
                                 />
                                 {formErrors.phone && <p className="mt-1 text-xs text-rose-600">{formErrors.phone}</p>}
                             </div>
 
                             <div>
-                                <label className="mb-1 block text-sm font-semibold text-slate-600">ຈຳນວນຄົນ</label>
-                                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700 sm:text-sm">ຈຳນວນຄົນ</label>
+                                <div className="flex items-center justify-between gap-6 rounded-xl border border-slate-200 bg-white px-2 py-2 shadow-inner sm:px-3">
                                     <button
                                         type="button"
                                         onClick={() => onFormField('guest_count', Math.max(1, Number(form.guest_count) - 1))}
-                                        className="rounded-full border border-slate-400 p-1 text-slate-700"
+                                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:border-[#194c9f]/40 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#194c9f]"
+                                        aria-label="ຫຼຸດຈຳນວນ"
                                     >
-                                        <Minus className="h-4 w-4" />
+                                        <Minus className="h-5 w-5" />
                                     </button>
-                                    <span className="text-xl font-semibold">{form.guest_count}</span>
+                                    <span className="min-w-[2.5rem] text-center text-xl font-bold tabular-nums text-slate-900 sm:text-2xl">{form.guest_count}</span>
                                     <button
                                         type="button"
                                         onClick={() => onFormField('guest_count', Math.min(20, Number(form.guest_count) + 1))}
-                                        className="rounded-full border border-slate-400 p-1 text-slate-700"
+                                        className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 shadow-sm transition hover:border-[#194c9f]/40 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#194c9f]"
+                                        aria-label="ເພີ່ມຈຳນວນ"
                                     >
-                                        <Plus className="h-4 w-4" />
+                                        <Plus className="h-5 w-5" />
                                     </button>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="mb-1 block text-sm font-semibold text-slate-600">ປະເພດບຸບເຟ່</label>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700 sm:text-sm">ປະເພດບຸບເຟ່</label>
                                 <select
                                     value={form.tier_id}
                                     onChange={(event) => onFormField('tier_id', event.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base"
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-[#194c9f] focus:outline-none focus:ring-2 focus:ring-[#194c9f]/20 sm:text-base"
                                 >
                                     <option value="">ເລືອກປະເພດບຸບເຟ່</option>
                                     {buffet_tiers.map((tier) => (
@@ -612,14 +604,48 @@ export default function ReservePage({
                                 {formErrors.tier_id && <p className="mt-1 text-xs text-rose-600">{formErrors.tier_id}</p>}
                             </div>
 
+                            <fieldset className="space-y-2 rounded-xl border border-slate-200 bg-slate-50/90 p-3 sm:p-4">
+                                <legend className="px-1 text-xs font-semibold text-slate-700 sm:text-sm">ເລືອກໂຊນ / Zone</legend>
+                                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-transparent p-2 hover:bg-white/80 has-[:checked]:border-[#194c9f]/30 has-[:checked]:bg-white">
+                                    <input
+                                        type="radio"
+                                        name="zone_choice"
+                                        className="mt-1 h-4 w-4 shrink-0 accent-[#194c9f]"
+                                        checked={form.zone_choice === 'standard'}
+                                        onChange={() => onFormField('zone_choice', 'standard')}
+                                    />
+                                    <span className="min-w-0 text-sm text-slate-800">
+                                        <span className="font-bold">ໂຊນມາດຕະຖານ</span>
+                                        <span className="mt-0.5 block text-xs text-slate-600">Standard Zone · ຄິວ Q-XXXX</span>
+                                    </span>
+                                </label>
+                                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-transparent p-2 hover:bg-amber-50/80 has-[:checked]:border-amber-400/60 has-[:checked]:bg-amber-50">
+                                    <input
+                                        type="radio"
+                                        name="zone_choice"
+                                        className="mt-1 h-4 w-4 shrink-0 accent-amber-600"
+                                        checked={form.zone_choice === 'vip_room'}
+                                        onChange={() => onFormField('zone_choice', 'vip_room')}
+                                    />
+                                    <span className="min-w-0 text-sm text-slate-900">
+                                        <span className="inline-flex flex-wrap items-center gap-1 font-bold">
+                                            ຫ້ອງ VIP <span aria-hidden>👑</span>
+                                        </span>
+                                        <span className="mt-0.5 block text-xs text-amber-900/90">
+                                            VIP Room Zone (+200,000 ₭ ຄ່າບໍລິການ ໂຕະຊຳລະຕອນເຊັກບິນ) · ຄິວ V-XXXX
+                                        </span>
+                                    </span>
+                                </label>
+                            </fieldset>
+
                             <div>
-                                <label className="mb-1 block text-sm font-semibold text-slate-600">ວັນທີຈອງ</label>
+                                <label className="mb-1.5 block text-xs font-semibold text-slate-700 sm:text-sm">ວັນທີຈອງ</label>
                                 <input
                                     type="date"
                                     min={new Date().toISOString().slice(0, 10)}
                                     value={form.booking_date}
                                     onChange={(event) => onFormField('booking_date', event.target.value)}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-base"
+                                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm shadow-sm transition focus:border-[#194c9f] focus:outline-none focus:ring-2 focus:ring-[#194c9f]/20 sm:text-base"
                                 />
                                 {formErrors.booking_date && <p className="mt-1 text-xs text-rose-600">{formErrors.booking_date}</p>}
                             </div>
@@ -628,10 +654,11 @@ export default function ReservePage({
                                 type="button"
                                 onClick={submitBooking}
                                 disabled={submitting}
-                                className="w-full rounded-xl bg-[#194c9f] px-4 py-2.5 text-xl font-bold text-white disabled:opacity-50"
+                                className="touch-target mt-2 w-full rounded-xl bg-gradient-to-b from-[#2a63bb] to-[#174896] px-4 py-3.5 text-base font-bold text-white shadow-[0_10px_28px_rgba(25,76,159,0.35)] ring-1 ring-white/25 transition hover:-translate-y-0.5 hover:brightness-105 disabled:opacity-50 disabled:hover:translate-y-0 sm:text-lg"
                             >
                                 {submitting ? 'ກຳລັງບັນທຶກ...' : 'ຢືນຢັນການຈອງ'}
                             </button>
+                        </div>
                         </div>
                     </section>
                 </div>
@@ -646,14 +673,14 @@ export default function ReservePage({
                         onClick={closeDetail}
                     />
                     <div
-                        className={`relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-[transform,opacity] duration-300 ease-out sm:rounded-2xl sm:translate-y-0 ${
+                        className={`relative z-10 flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl transition-[transform,opacity] duration-300 ease-out sm:max-w-lg sm:rounded-2xl sm:translate-y-0 lg:max-w-xl ${
                             detailAnim ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 sm:opacity-0'
                         }`}
                         style={{ fontFamily: "'Noto Sans Lao', sans-serif" }}
                     >
                         <div className="mx-auto mt-2 h-1.5 w-14 shrink-0 rounded-full bg-slate-300 sm:hidden" />
                         <div className="flex shrink-0 items-start justify-between border-b border-slate-100 px-4 pb-2 pt-3">
-                            <h2 className="text-lg font-extrabold text-[#194c9f] underline decoration-[#194c9f] decoration-2 underline-offset-4">ລາຍລະອຽດຄິວ</h2>
+                            <h2 className="text-base font-extrabold text-[#194c9f] underline decoration-[#194c9f] decoration-2 underline-offset-4 sm:text-lg">ລາຍລະອຽດຄິວ</h2>
                             <button
                                 type="button"
                                 onClick={closeDetail}
@@ -665,25 +692,13 @@ export default function ReservePage({
                         </div>
                         <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 pt-2">
                             <div className="flex flex-col items-center">
-                                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-[#194c9f] text-3xl font-extrabold text-white shadow-inner">
-                                    {formatQueueNoDisplay(detailQueue.queue_no)}
+                                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-[#194c9f] px-2 text-white shadow-inner sm:h-32 sm:w-32 md:h-36 md:w-36 md:px-3">
+                                    <span className="max-w-full whitespace-normal break-words text-center text-xl font-black leading-none tabular-nums sm:text-2xl md:text-3xl">
+                                        {formatQueueNoDisplay(detailQueue.queue_no)}
+                                    </span>
                                 </div>
                                 <QueueDetailStatusPill status={detailQueue.status} />
                             </div>
-
-                            {!detailIsHistory && (
-                                <div className="mt-4 rounded-xl border border-slate-200 border-l-4 border-l-[#194c9f] bg-slate-50 py-3 pl-4 pr-3 shadow-sm">
-                                    <div className="flex items-start gap-3">
-                                        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#194c9f]/15 text-[#194c9f]">
-                                            <Clock3 className="h-5 w-5" />
-                                        </div>
-                                        <div>
-                                            <p className="text-xl font-extrabold text-slate-900">~{detailQueue.estimated_wait_time ?? estimatedWait} ນາທີ</p>
-                                            <p className="text-xs text-slate-500">ລໍຖ້າໂດຍປະມານ</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
 
                             <ul className="mt-4 divide-y divide-slate-100 rounded-xl border border-slate-100 bg-white">
                                 <li className="flex gap-3 px-3 py-3">
@@ -715,6 +730,15 @@ export default function ReservePage({
                                     </div>
                                 </li>
                                 <li className="flex gap-3 px-3 py-3">
+                                    <Ticket className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+                                    <div>
+                                        <p className="text-xs text-slate-500">ໂຊນ / Zone</p>
+                                        <p className="font-bold text-slate-900">
+                                            {detailQueue.is_vip ? 'VIP Room 👑' : 'Standard Zone'}
+                                        </p>
+                                    </div>
+                                </li>
+                                <li className="flex gap-3 px-3 py-3">
                                     <Calendar className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
                                     <div>
                                         <p className="text-xs text-slate-500">ວັນທີຈອງ</p>
@@ -732,7 +756,7 @@ export default function ReservePage({
                                     type="button"
                                     onClick={openCancelFromDetail}
                                     disabled={canceling}
-                                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 py-3 text-base font-bold text-white shadow-sm transition hover:bg-rose-600 disabled:opacity-50"
+                                    className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-rose-500 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-rose-600 disabled:opacity-50 sm:text-base"
                                 >
                                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-rose-500">
                                         <X className="h-5 w-5" />

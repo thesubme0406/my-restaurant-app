@@ -3,58 +3,85 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import FlashAlert from '@/Components/Admin/Common/FlashAlert';
 import StatusBadge from '@/Components/Admin/Common/StatusBadge';
+import TablePagination from '@/Components/Admin/Common/TablePagination';
+import { PAGE_SIZE, paginateSlice } from '@/Components/Reports/reportTableUtils';
 import { Search, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatAmount } from '@/utils/formatAmount';
+import { importRouteNames } from '@/utils/routeNamesFromUrl';
 
 const primary = '#194c9f';
 
-function routeNamesFromUrl(url) {
-    const path = typeof url === 'string' ? url.split('?')[0] : '';
-    const isAdmin = path.startsWith('/admin');
-    return {
-        importStore: isAdmin ? 'admin.import.store' : 'staff.import.store',
-    };
+function sortImportPurchaseOrders(list) {
+    return [...list].sort((a, b) => {
+        if (Boolean(a.is_imported) !== Boolean(b.is_imported)) {
+            return a.is_imported ? 1 : -1;
+        }
+        if (a.is_imported) {
+            return String(a.imported_at ?? '').localeCompare(String(b.imported_at ?? ''));
+        }
+        return Number(b.id) - Number(a.id);
+    });
+}
+
+function firstPendingPo(orders) {
+    return orders.find((po) => !po.is_imported) ?? orders[0] ?? null;
 }
 
 export default function ImportPage({ purchaseOrders = [] }) {
     const page = usePage();
     const pageErrors = page.props.errors ?? {};
     const flashSuccess = page.props.flash?.success;
-    const routes = useMemo(() => routeNamesFromUrl(page.url ?? ''), [page.url]);
+    const routes = useMemo(() => importRouteNames(page.url ?? ''), [page.url]);
     const [localSuccess, setLocalSuccess] = useState('');
 
     const [search, setSearch] = useState('');
-    const [selectedPoId, setSelectedPoId] = useState(purchaseOrders[0]?.id ?? null);
-    const [lineItems, setLineItems] = useState(purchaseOrders[0]?.items ?? []);
+    const [selectedPoId, setSelectedPoId] = useState(() => firstPendingPo(purchaseOrders)?.id ?? null);
+    const [lineItems, setLineItems] = useState(() => firstPendingPo(purchaseOrders)?.items ?? []);
     const [submitting, setSubmitting] = useState(false);
+    const [poListPage, setPoListPage] = useState(1);
+
+    const sortedOrders = useMemo(() => sortImportPurchaseOrders(purchaseOrders), [purchaseOrders]);
 
     const filteredOrders = useMemo(() => {
         const q = search.trim().toLowerCase();
         if (!q) {
-            return purchaseOrders;
+            return sortedOrders;
         }
-        return purchaseOrders.filter((po) => {
+        return sortImportPurchaseOrders(
+            sortedOrders.filter((po) => {
             const sup = String(po.supplier_name ?? '').toLowerCase();
             const no = String(po.po_no ?? '').toLowerCase();
             return sup.includes(q) || no.includes(q);
-        });
+            })
+        );
+    }, [sortedOrders, search]);
+
+    const { pageRows: pagedOrders } = useMemo(
+        () => paginateSlice(filteredOrders, poListPage, PAGE_SIZE),
+        [filteredOrders, poListPage]
+    );
+
+    useEffect(() => {
+        setPoListPage(1);
     }, [purchaseOrders, search]);
 
     const selectedPo = useMemo(
-        () => purchaseOrders.find((po) => po.id === selectedPoId) ?? null,
-        [purchaseOrders, selectedPoId]
+        () => sortedOrders.find((po) => po.id === selectedPoId) ?? null,
+        [sortedOrders, selectedPoId]
     );
     const isImported = Boolean(selectedPo?.is_imported);
     const displayItems = isImported ? selectedPo?.imported_items ?? [] : lineItems;
     const totalPrice = useMemo(
         () =>
-            displayItems.reduce(
+            lineItems.reduce(
                 (sum, item) => sum + Number(item.quantity || 0) * Number(item.cost_price || 0),
                 0
             ),
-        [displayItems]
+        [lineItems]
     );
+
+    const canSubmitImport = Boolean(selectedPo) && !isImported && lineItems.length > 0 && !submitting;
 
     const selectPo = (po) => {
         setSelectedPoId(po.id);
@@ -71,7 +98,7 @@ export default function ImportPage({ purchaseOrders = [] }) {
     };
 
     const submitStockIn = () => {
-        if (!selectedPo || isImported || lineItems.length === 0 || submitting) {
+        if (!canSubmitImport) {
             return;
         }
         setLocalSuccess('');
@@ -82,14 +109,21 @@ export default function ImportPage({ purchaseOrders = [] }) {
                 po_id: selectedPo.id,
                 items: lineItems.map((item) => ({
                     ing_id: item.ing_id,
-                    quantity: item.quantity,
+                    quantity: Number(item.quantity || 0),
                     cost_price: item.cost_price,
                 })),
             },
             {
                 preserveScroll: true,
                 onFinish: () => setSubmitting(false),
-                onSuccess: () => setLocalSuccess('ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ'),
+                onSuccess: (visit) => {
+                    setLocalSuccess('ບັນທຶກຂໍ້ມູນສຳເລັດແລ້ວ');
+                    const nextPending = firstPendingPo(sortImportPurchaseOrders(visit.props.purchaseOrders ?? []));
+                    if (nextPending) {
+                        setSelectedPoId(nextPending.id);
+                        setLineItems(nextPending.items.map((item) => ({ ...item })));
+                    }
+                },
             }
         );
     };
@@ -131,7 +165,7 @@ export default function ImportPage({ purchaseOrders = [] }) {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200 bg-white">
-                                        {filteredOrders.map((po) => (
+                                        {pagedOrders.map((po) => (
                                             <tr
                                                 key={po.id}
                                                 onClick={() => selectPo(po)}
@@ -152,6 +186,14 @@ export default function ImportPage({ purchaseOrders = [] }) {
                                         ))}
                                     </tbody>
                                 </table>
+                                <div className="border-t border-slate-100 px-3 pb-3">
+                                    <TablePagination
+                                        page={poListPage}
+                                        onPageChange={setPoListPage}
+                                        totalItems={filteredOrders.length}
+                                        pageSize={PAGE_SIZE}
+                                    />
+                                </div>
                             </div>
                         </section>
 
@@ -191,7 +233,7 @@ export default function ImportPage({ purchaseOrders = [] }) {
                                         <div className="mt-2 flex items-center gap-2">
                                             <input
                                                 type="number"
-                                                min="0.01"
+                                                min="0"
                                                 step="0.01"
                                                 value={item.quantity}
                                                 onChange={(e) => updateItem(item.ing_id, 'quantity', e.target.value)}
@@ -226,9 +268,9 @@ export default function ImportPage({ purchaseOrders = [] }) {
                                     <button
                                         type="button"
                                         onClick={submitStockIn}
-                                        disabled={!selectedPo || lineItems.length === 0 || submitting}
+                                        disabled={!canSubmitImport}
                                         className="w-full rounded-xl px-4 py-3 text-base font-bold text-white shadow-md transition hover:bg-[#153d82] disabled:cursor-not-allowed disabled:bg-slate-300"
-                                        style={{ backgroundColor: !selectedPo || lineItems.length === 0 || submitting ? undefined : primary }}
+                                        style={{ backgroundColor: canSubmitImport ? primary : undefined }}
                                     >
                                         {submitting ? 'ກຳລັງບັນທຶກ...' : 'ນຳເຂົ້າວັດຖຸດິບ'}
                                     </button>

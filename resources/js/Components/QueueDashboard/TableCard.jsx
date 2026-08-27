@@ -27,12 +27,17 @@ const statusConfig = {
 
 export default function TableCard({ table, onClick }) {
     const cfg = statusConfig[table.status] ?? statusConfig.available;
+    const vipZone = Boolean(table.is_vip_zone);
 
     return (
         <button
             type="button"
             onClick={() => onClick?.(table)}
-            className={`group relative flex w-full cursor-pointer overflow-hidden rounded-2xl border border-slate-200/90 bg-white text-left shadow-md ring-1 ring-transparent transition-all duration-200 hover:scale-105 hover:shadow-lg hover:ring-slate-200/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#194c9f] focus-visible:ring-offset-2 ${cfg.ring}`}
+            className={`group relative flex w-full cursor-pointer overflow-hidden rounded-2xl border bg-white text-left shadow-md ring-1 transition-all duration-200 hover:scale-105 hover:shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#194c9f] focus-visible:ring-offset-2 ${
+                vipZone
+                    ? 'border-amber-400/90 ring-2 ring-amber-300/80 shadow-amber-100/40'
+                    : `border-slate-200/90 ring-transparent hover:ring-slate-200/60 ${cfg.ring}`
+            }`}
         >
             <span
                 className={`absolute inset-y-3 left-0 w-1.5 rounded-full ${cfg.bar}`}
@@ -43,6 +48,7 @@ export default function TableCard({ table, onClick }) {
                     <div>
                         <p className={`text-xs font-semibold uppercase tracking-wide ${cfg.subtle}`}>
                             ໂຕະ
+                            {vipZone ? <span className="ms-1 inline-flex items-center gap-0.5 text-amber-700" title="VIP zone">👑</span> : null}
                         </p>
                         <p className={`mt-0.5 text-xl font-bold tracking-tight ${cfg.text}`}>
                             {table.table_no}

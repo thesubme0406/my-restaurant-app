@@ -2,19 +2,16 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import FlashAlert from '@/Components/Admin/Common/FlashAlert';
+import TablePagination from '@/Components/Admin/Common/TablePagination';
+import { PAGE_SIZE, paginateSlice } from '@/Components/Reports/reportTableUtils';
 import { Search, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatAmount } from '@/utils/formatAmount';
+import { getInertiaFlashValue } from '@/utils/inertiaFlash';
+import { openPurchaseOrderPrint } from '@/utils/openPurchaseOrderPrint';
+import { purchaseRouteNames } from '@/utils/routeNamesFromUrl';
 
 const primary = '#194c9f';
-
-function routeNamesFromUrl(url) {
-    const path = typeof url === 'string' ? url.split('?')[0] : '';
-    const isAdmin = path.startsWith('/admin');
-    return {
-        purchaseStore: isAdmin ? 'admin.purchase.store' : 'staff.purchase.store',
-    };
-}
 
 function formatQty(value) {
     const n = Number(value);
@@ -26,13 +23,28 @@ function formatQty(value) {
 
 export default function PurchasePage({ ingredients = [], suppliers = [] }) {
     const page = usePage();
-    const routes = useMemo(() => routeNamesFromUrl(page.url ?? ''), [page.url]);
+    const routes = useMemo(() => purchaseRouteNames(page.url ?? ''), [page.url]);
     const [search, setSearch] = useState('');
     const [supplierId, setSupplierId] = useState(suppliers[0]?.id ? String(suppliers[0].id) : '');
     const [cart, setCart] = useState([]);
     const [submitting, setSubmitting] = useState(false);
+    const [ingredientsPage, setIngredientsPage] = useState(1);
+    const lastPurchasePrintRef = useRef(null);
     const flashSuccess = page.props.flash?.success;
     const pageErrors = page.props.errors ?? {};
+
+    const handlePurchasePrintFlash = useCallback((flashPayload) => {
+        const payload = getInertiaFlashValue(flashPayload, 'print_purchase_order');
+        if (!payload?.po_no) {
+            return;
+        }
+        const key = JSON.stringify(payload);
+        if (lastPurchasePrintRef.current === key) {
+            return;
+        }
+        lastPurchasePrintRef.current = key;
+        openPurchaseOrderPrint(payload);
+    }, []);
 
     const filteredIngredients = useMemo(() => {
         const q = search.trim().toLowerCase();
@@ -40,6 +52,15 @@ export default function PurchasePage({ ingredients = [], suppliers = [] }) {
             return ingredients;
         }
         return ingredients.filter((i) => String(i.ing_name ?? '').toLowerCase().includes(q));
+    }, [ingredients, search]);
+
+    const { pageRows: pagedIngredients, startIdx: ingStartIdx } = useMemo(
+        () => paginateSlice(filteredIngredients, ingredientsPage, PAGE_SIZE),
+        [filteredIngredients, ingredientsPage]
+    );
+
+    useEffect(() => {
+        setIngredientsPage(1);
     }, [ingredients, search]);
 
     const inCart = useMemo(() => new Set(cart.map((c) => c.ing_id)), [cart]);
@@ -83,7 +104,11 @@ export default function PurchasePage({ ingredients = [], suppliers = [] }) {
             },
             {
                 preserveScroll: true,
-                onSuccess: () => setCart([]),
+                onFlash: handlePurchasePrintFlash,
+                onSuccess: (visit) => {
+                    setCart([]);
+                    handlePurchasePrintFlash(visit);
+                },
                 onFinish: () => setSubmitting(false),
             }
         );
@@ -123,12 +148,12 @@ export default function PurchasePage({ ingredients = [], suppliers = [] }) {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200 bg-white">
-                                        {filteredIngredients.map((row, idx) => {
+                                        {pagedIngredients.map((row, idx) => {
                                             const low = Number(row.ing_quantity) < Number(row.ing_min);
                                             const added = inCart.has(row.id);
                                             return (
                                                 <tr key={row.id}>
-                                                    <td className="px-3 py-2">{idx + 1}</td>
+                                                    <td className="px-3 py-2">{ingStartIdx + idx + 1}</td>
                                                     <td className="px-3 py-2 font-semibold text-slate-900">{row.ing_name}</td>
                                                     <td className={`px-3 py-2 font-semibold ${low ? 'text-rose-600' : 'text-slate-800'}`}>
                                                         {formatQty(row.ing_quantity)} {row.ing_unit}
@@ -155,6 +180,14 @@ export default function PurchasePage({ ingredients = [], suppliers = [] }) {
                                         })}
                                     </tbody>
                                 </table>
+                                <div className="border-t border-slate-100 px-3 pb-3">
+                                    <TablePagination
+                                        page={ingredientsPage}
+                                        onPageChange={setIngredientsPage}
+                                        totalItems={filteredIngredients.length}
+                                        pageSize={PAGE_SIZE}
+                                    />
+                                </div>
                             </div>
                         </section>
 

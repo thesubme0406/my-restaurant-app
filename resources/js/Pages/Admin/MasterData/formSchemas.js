@@ -30,6 +30,7 @@ export function staffFormSchema(mode) {
             label: 'ເບີໂທລະສັບ',
             type: 'tel',
             required: true,
+            placeholder: '02012345678',
             phoneLookup: {
                 strategy: 'staff',
                 mapResponse: { name: 'name', surname: 'surname' },
@@ -302,7 +303,7 @@ export const supplierFormSchema = [
         label: 'ເບີໂທຜູ້ສະໜອງ',
         type: 'tel',
         required: true,
-        maxLength: 15,
+        placeholder: '02012345678',
     },
     {
         name: 'contact_person',

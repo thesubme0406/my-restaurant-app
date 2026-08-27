@@ -27,10 +27,10 @@ function OshineiLogoMark() {
 function StatCell({ value, label }) {
     return (
         <div className="flex flex-col items-center justify-center px-1 py-3 text-center">
-            <p className="text-lg font-bold tabular-nums" style={{ color: BRAND }}>
+            <p className="text-base font-bold tabular-nums sm:text-lg" style={{ color: BRAND }}>
                 {value}
             </p>
-            <p className="mt-1 font-lao text-[0.65rem] font-medium leading-snug text-slate-700">{label}</p>
+            <p className="mt-1 font-lao text-[0.6rem] font-medium leading-snug text-slate-700 sm:text-[0.65rem]">{label}</p>
         </div>
     );
 }
@@ -52,8 +52,8 @@ export default function AboutPage() {
         <CustomerLayout>
             <Head title="ກ່ຽວກັບ OSHINEI" />
 
-            <div className="-mx-4 space-y-0">
-                <section className="px-4 pb-8 pt-5" style={{ backgroundColor: BRAND }}>
+            <div className="customer-page mx-auto max-w-4xl space-y-0 overflow-hidden rounded-2xl shadow-xl ring-1 ring-slate-200/85">
+                <section className="px-5 pb-8 pt-6 sm:px-8 sm:pt-7" style={{ backgroundColor: BRAND }}>
                     <div className="flex items-start justify-between gap-4">
                         <OshineiLogoMark />
                         <div className="min-w-0 flex-1 space-y-3 pt-1 text-left text-white">
@@ -69,31 +69,31 @@ export default function AboutPage() {
                         </div>
                     </div>
 
-                    <h1 className="font-lao mt-7 text-center text-[1.35rem] font-extrabold leading-snug tracking-tight sm:text-2xl">
+                    <h1 className="font-lao mt-7 text-center text-xl font-extrabold leading-snug tracking-tight sm:text-2xl">
                         <span style={{ color: BRAND_SOFT }}>ປະສົບການ</span>{' '}
                         <span className="text-white">ການກິນອາຫານຍີ່ປຸ່ນ ໃຈກາງນະຄອນຫຼວງວຽງຈັນ</span>
                     </h1>
-                    <p className="font-lao mx-auto mt-4 max-w-[22rem] text-center text-sm leading-relaxed text-white/85">
+                    <p className="font-lao mx-auto mt-4 max-w-[22rem] text-center text-xs leading-relaxed text-white/85 sm:text-sm">
                         ພວກເຮົາມຸ່ງໝັ້ນໃນຄຸນນະພາບອາຫານ ແລະ ການຕ້ອນຮັບອົບອຸ່ນ ຕະຫຼອດມາ ຕັ້ງແຕ່ເປີດໃຫ້ບໍລິການໃນລາວ.
                     </p>
                 </section>
 
-                <div className="grid grid-cols-4 divide-x divide-slate-300/90 bg-slate-200/95">
+                <div className="grid grid-cols-2 divide-x divide-y divide-slate-300/90 bg-slate-200/95 sm:grid-cols-4 sm:divide-y-0">
                     <StatCell value="2014" label="ກໍ່ຕັ້ງເມື່ອ" />
                     <StatCell value="200+" label="ເມນູໃຫ້ເລືອກ" />
                     <StatCell value="4" label="ແພັກເກັດລາຄາ" />
                     <StatCell value="1000+" label="ລູກຄ້າຕໍ່ເດືອນ" />
                 </div>
 
-                <article className="bg-white px-4 pb-10 pt-8">
-                    <h2 className="font-lao text-lg font-bold tracking-tight" style={{ color: BRAND }}>
+                <article className="bg-white px-5 pb-10 pt-8 sm:px-10">
+                    <h2 className="font-lao text-base font-bold tracking-tight sm:text-lg" style={{ color: BRAND }}>
                         ປະຫວັດຫຍໍ້ຂອງຮ້ານ
                     </h2>
                     <div className="mt-8 space-y-0">
                         {PARAGRAPHS.map((p, i) => (
                             <div key={i}>
                                 {i > 0 ? <div className="my-8 border-t border-slate-200" /> : null}
-                                <p className="font-lao text-[0.9375rem] leading-relaxed text-slate-800">{p.text}</p>
+                                <p className="font-lao text-sm leading-relaxed text-slate-800 sm:text-[0.9375rem]">{p.text}</p>
                             </div>
                         ))}
                     </div>
@@ -101,7 +101,7 @@ export default function AboutPage() {
             </div>
 
             <p className="mt-5 text-center">
-                <Link href={route('customer.home')} className="text-sm font-semibold hover:underline" style={{ color: BRAND }}>
+                <Link href={route('customer.home')} className="text-xs font-semibold hover:underline sm:text-sm" style={{ color: BRAND }}>
                     ← ກັບໜ້າຫຼັກ
                 </Link>
             </p>

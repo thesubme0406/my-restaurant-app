@@ -97,5 +97,37 @@ LAO,
                 'published_at' => $row['published_at'],
             ]);
         }
+
+        $extra = [
+            [
+                'title' => 'Draft: ກຳລັງກະກຽມປະກາດໃໝ່',
+                'content' => 'ນີ້ແມ່ນຂ່າວຮ່າງສຳລັບທົດສອບ — ຍັງບໍ່ເຜີຍແຜ່.',
+                'status' => 'draft',
+                'published_at' => null,
+            ],
+            [
+                'title' => 'Expired: ໂປຣເກົ່າສິ້ນສຸດແລ້ວ',
+                'content' => 'ໂປຣໂມຊັ່ນນີ້ໝົດອາຍຸແລ້ວ; ກວດເບິ່ງໂປຣໃໝ່ທີ່ໜ້າຂ່າວ.',
+                'status' => 'expired',
+                'published_at' => now()->subMonths(4),
+            ],
+            [
+                'title' => 'Scheduled: ເປີດຮັບຈອງວັນທີ່ຫນ້າ',
+                'content' => 'ຂ່າວນີ້ມີວັນເຜີຍແຜ່ເປັນອະນາຄົດເພື່ອທົດສອບປະຕິທິນ.',
+                'status' => 'published',
+                'published_at' => now()->addWeeks(3),
+            ],
+        ];
+
+        foreach ($extra as $row) {
+            News::query()->create([
+                'staff_id' => $staffId,
+                'title' => $row['title'],
+                'content' => $row['content'],
+                'image' => null,
+                'status' => $row['status'],
+                'published_at' => $row['published_at'],
+            ]);
+        }
     }
 }

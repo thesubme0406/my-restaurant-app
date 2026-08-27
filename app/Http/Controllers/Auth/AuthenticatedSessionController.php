@@ -61,9 +61,7 @@ class AuthenticatedSessionController extends Controller
         );
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
+    // ລົບການລັອກອິນຂອງຜູ້ໃຊ້ງານ
     public function destroy(Request $request): RedirectResponse
     {
         foreach (['staff', 'customer'] as $guard) {

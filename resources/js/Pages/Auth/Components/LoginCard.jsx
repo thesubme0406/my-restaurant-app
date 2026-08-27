@@ -4,6 +4,7 @@ import PrimaryButton from '@/Pages/Auth/Components/PrimaryButton';
 import { Link } from '@inertiajs/react';
 import { Lock, Phone } from 'lucide-react';
 import { useState } from 'react';
+import { digitsOnly, PHONE_PLACEHOLDER } from '@/utils/phoneFormat';
 
 export default function LoginCard({
     data,
@@ -36,9 +37,10 @@ export default function LoginCard({
                     label="ເບີໂທລະສັບ"
                     type="tel"
                     value={data.phone}
-                    onChange={(e) => setData('phone', e.target.value)}
+                    onChange={(e) => setData('phone', digitsOnly(e.target.value))}
                     icon={Phone}
                     autoComplete="tel"
+                    placeholder={PHONE_PLACEHOLDER}
                     isFocused
                 />
                 <InputError message={errors.phone} className="mt-1 text-white" />

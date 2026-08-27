@@ -4,14 +4,21 @@ import { formatAmount } from '@/utils/formatAmount';
 /** ສ່ວນສະຫຼຸບຂໍ້ມູນຕາມປະເພດລາຍງານ */
 export default function ReportSummarySection({ reportType, summary, moneyKip }) {
     if (reportType === 'queue_statistics') {
+        const skipEvents = summary.skip_events_total ?? summary.skipped_total ?? 0;
+
         return (
             <div>
-                <p className="mb-2 text-sm font-semibold text-[#194c9f] font-sans">ສະຫຼຸບສະຖິຕິຄິວຕາມສະຖານະ</p>
+                <p className="mb-2 text-sm font-semibold text-[#194c9f] font-sans">ສະຫຼຸບສະຖິຕິຄິວ</p>
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <ReportStatCard title="ຄິວສຳເລັດ" value={summary.completed_total ?? 0} />
-                    <ReportStatCard title="ຄິວຂ້າມ" value={summary.skipped_total ?? 0} />
                     <ReportStatCard title="ຄິວຍົກເລີກ" value={summary.cancelled_total ?? 0} />
-                    <ReportStatCard title="ລວມ (ຊ່ວງທີ່ເລືອກ)" value={summary.total_queue ?? 0} />
+                    <ReportStatCard title="ລວມ" value={summary.total_queue ?? 0} hint="ສຳເລັດ + ຍົກເລີກ" />
+                    <ReportStatCard
+                        variant="info"
+                        title="ຄັ້ງຂ້າມ"
+                        value={skipEvents}
+                        hint="ຂໍ້ມູນເສີມ — ບໍ່ນັບໃສ່ລວມ"
+                    />
                 </div>
             </div>
         );
@@ -83,6 +90,12 @@ export default function ReportSummarySection({ reportType, summary, moneyKip }) 
             <p className="text-sm font-semibold text-[#194c9f] font-sans">ສະຫຼຸບລາຍຮັບຊ່ວງທີ່ເລືອກ</p>
             <p className="text-2xl font-bold text-slate-900">{moneyKip(summary.total)}</p>
             <p className="mt-1 text-xs text-slate-600 font-sans">ຈຳນວນບິນ: {summary.count ?? 0}</p>
+            {typeof summary.voided_total === 'number' ? (
+                <p className="mt-2 text-xs font-semibold text-rose-700 font-sans">
+                    ຍອດເງິນທີ່ຖືກຍົກເລີກ: {moneyKip(summary.voided_total)}
+                    {summary.voided_count != null ? ` · ${summary.voided_count} ບິນ` : ''}
+                </p>
+            ) : null}
         </div>
     );
 }

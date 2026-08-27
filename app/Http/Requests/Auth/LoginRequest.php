@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Support\PhoneNumber;
 use Illuminate\Auth\Events\Lockout;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -28,9 +28,24 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'phone' => ['required', 'string', 'max:32'],
+            'phone' => PhoneNumber::rules(),
             'password' => ['required', 'string'],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return PhoneNumber::messages();
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'phone' => PhoneNumber::digits((string) $this->input('phone', '')),
+        ]);
     }
 
     /**
@@ -92,6 +107,6 @@ class LoginRequest extends FormRequest
 
     public function normalizedPhone(): string
     {
-        return preg_replace('/\D+/', '', (string) $this->input('phone')) ?? '';
+        return PhoneNumber::digits((string) $this->input('phone', ''));
     }
 }

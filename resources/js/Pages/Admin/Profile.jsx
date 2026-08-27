@@ -3,6 +3,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, usePage } from '@inertiajs/react';
 import { Eye, EyeOff, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { digitsOnly, PHONE_PLACEHOLDER } from '@/utils/phoneFormat';
 
 const primary = '#194c9f';
 const inputClass =
@@ -248,8 +249,10 @@ export default function Profile({ profile }) {
                                 <div>
                                     <label className="text-xs font-bold text-slate-700">ເບີໂທລະສັບ</label>
                                     <input
+                                        inputMode="numeric"
+                                        placeholder={PHONE_PLACEHOLDER}
                                         value={form.phone}
-                                        onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+                                        onChange={(e) => setForm((prev) => ({ ...prev, phone: digitsOnly(e.target.value) }))}
                                         className={inputClass}
                                     />
                                     {pageErrors.phone && <p className="mt-1 text-xs text-rose-600">{pageErrors.phone}</p>}

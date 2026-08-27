@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Customer;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,12 +36,16 @@ class CustomerProfileController extends Controller
         $customer = $request->user('customer');
         abort_if($customer === null, 403);
 
+        $request->merge([
+            'phone' => PhoneNumber::digits((string) $request->input('phone', '')),
+        ]);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:100'],
-            'phone' => ['required', 'string', 'max:32', Rule::unique('customers', 'phone')->ignore($customer->id)],
+            'phone' => array_merge(PhoneNumber::rules(), [Rule::unique('customers', 'phone')->ignore($customer->id)]),
             'current_password' => ['nullable', 'string'],
             'password' => ['nullable', 'confirmed', Password::defaults()],
-        ]);
+        ], PhoneNumber::messages());
 
         if ($data['password'] ?? null) {
             $current = $data['current_password'] ?? '';

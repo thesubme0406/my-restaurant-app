@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'Oshinei'),
 
     /*
     |--------------------------------------------------------------------------
@@ -122,5 +122,16 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dining session duration (hours)
+    |--------------------------------------------------------------------------
+    |
+    | Used for service paper end-time on queue-to-table check-in.
+    |
+    */
+
+    'dining_session_hours' => (float) env('DINING_SESSION_HOURS', 2),
 
 ];

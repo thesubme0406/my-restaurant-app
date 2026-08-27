@@ -12,6 +12,7 @@ export default function AuthInputField({
     isVisible = false,
     onToggleVisibility,
     isFocused = false,
+    placeholder,
 }) {
     return (
         <div>
@@ -31,6 +32,7 @@ export default function AuthInputField({
                     onChange={onChange}
                     autoComplete={autoComplete}
                     autoFocus={isFocused}
+                    placeholder={placeholder}
                     className="h-12 w-full rounded-xl border border-white/40 bg-white/95 pl-12 pr-12 text-sm text-slate-900 outline-none transition focus:border-white focus:ring-2 focus:ring-white/60"
                 />
                 {showToggle ? (

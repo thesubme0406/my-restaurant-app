@@ -2,13 +2,24 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import StatusBadge from '@/Components/Admin/Common/StatusBadge';
-import { Landmark, Loader2, Printer, Search, Trash2 } from 'lucide-react';
+import TablePagination from '@/Components/Admin/Common/TablePagination';
+import ConfirmDialog from '@/Components/MasterData/ConfirmDialog';
+import { Landmark, Loader2, Pencil, Printer, RotateCcw, Search, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import MoneyAmountInput from '@/Components/MoneyAmountInput';
+import VoidPaymentDialog from '@/Pages/Admin/Payments/VoidPaymentDialog';
+import EditVoidedPaymentDialog from '@/Pages/Admin/Payments/EditVoidedPaymentDialog';
 import { formatAmount } from '@/utils/formatAmount';
+import { paginateSlice, PAGE_SIZE } from '@/Components/Reports/reportTableUtils';
 import { openPaymentReceiptPrint } from '@/utils/openPaymentReceiptPrint';
+import {
+    PAYMENT_METHODS,
+    paymentMethodLabel,
+    paymentMethodSelectOptions,
+    paymentMethodBadgeTone,
+} from '@/utils/paymentMethod';
 
 const primary = '#194c9f';
 
@@ -26,13 +37,13 @@ function toastSuccess(title) {
     });
 }
 
-const methodOptions = [
-    { value: '', label: 'ທຸກວິທີ' },
-    { value: 'cash', label: 'ເງິນສົດ' },
-    { value: 'transfer', label: 'ເງິນໂອນ' },
+const methodOptions = [{ value: '', label: 'ທຸກວິທີ' }, ...PAYMENT_METHODS];
+const zoneFilterOptions = [
+    { value: '', label: 'ທັງໝົດ' },
+    { value: 'standard', label: 'ໂຊນທຳມະດາ' },
+    { value: 'vip', label: 'ໂຊນ VIP' },
 ];
-
-const payMethods = methodOptions.filter((x) => x.value);
+const payMethods = paymentMethodSelectOptions();
 
 function routeNamesFromUrl(url) {
     const path = typeof url === 'string' ? url.split('?')[0] : '';
@@ -42,13 +53,22 @@ function routeNamesFromUrl(url) {
         payments: isAdmin ? 'admin.payments' : 'staff.payments',
         paymentsStore: isAdmin ? 'admin.payments.store' : 'staff.payments.store',
         paymentsDestroy: isAdmin ? 'admin.payments.destroy' : 'staff.payments.destroy',
+        paymentsRestore: isAdmin ? 'admin.payments.restore' : 'staff.payments.restore',
+        paymentsCorrectVoided: isAdmin ? 'admin.payments.correct-voided' : 'staff.payments.correct-voided',
     };
 }
 
-export default function PaymentsPage({ payments = [], summary = {}, filters = {}, activeTables = [] }) {
+export default function PaymentsPage({
+    payments = [],
+    summary = {},
+    filters = {},
+    activeTables = [],
+    can_delete_payments = false,
+}) {
     const page = usePage();
     const pageErrors = page.props.errors ?? {};
     const routes = useMemo(() => routeNamesFromUrl(page.url ?? ''), [page.url]);
+    const canDeletePayments = Boolean(can_delete_payments);
 
     const [statsLoading, setStatsLoading] = useState(false);
     const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -60,15 +80,36 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
 
     const [querySearch, setQuerySearch] = useState(filters.search ?? '');
     const [queryMethod, setQueryMethod] = useState(filters.method ?? '');
+    const [queryZone, setQueryZone] = useState(filters.zone ?? '');
     const [queryFrom, setQueryFrom] = useState(filters.from ?? '');
     const [queryTo, setQueryTo] = useState(filters.to ?? '');
+    const [showDeleted, setShowDeleted] = useState(Boolean(filters.show_deleted));
+    const [deleteBusy, setDeleteBusy] = useState(false);
+    const [voidTarget, setVoidTarget] = useState(null);
+    const [voidError, setVoidError] = useState('');
+    const [restoreTarget, setRestoreTarget] = useState(null);
+    const [editVoidTarget, setEditVoidTarget] = useState(null);
+    const [editVoidError, setEditVoidError] = useState('');
+    const [voidActionBusy, setVoidActionBusy] = useState(false);
+    const [historyPage, setHistoryPage] = useState(1);
+
+    useEffect(() => {
+        setHistoryPage(1);
+    }, [payments.length, showDeleted]);
+
+    const { pageRows: pagedPayments } = useMemo(
+        () => paginateSlice(payments, historyPage, PAGE_SIZE),
+        [payments, historyPage]
+    );
 
     useEffect(() => {
         setQuerySearch(filters.search ?? '');
         setQueryMethod(filters.method ?? '');
+        setQueryZone(filters.zone ?? '');
         setQueryFrom(filters.from ?? '');
         setQueryTo(filters.to ?? '');
-    }, [filters.search, filters.method, filters.from, filters.to]);
+        setShowDeleted(Boolean(filters.show_deleted));
+    }, [filters.search, filters.method, filters.zone, filters.from, filters.to, filters.show_deleted]);
 
     useEffect(() => {
         if (method !== 'cash') {
@@ -81,25 +122,37 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
     const change = method === 'cash' ? Math.max(received - totalAmount, 0) : 0;
     const insufficientCash = method === 'cash' && receivedAmount !== '' && received < totalAmount;
 
-    const filterQuery = useCallback(() => {
-        const q = {};
-        if (querySearch) {
-            q.search = querySearch;
-        }
-        if (queryMethod) {
-            q.method = queryMethod;
-        }
-        if (queryFrom) {
-            q.from = queryFrom;
-        }
-        if (queryTo) {
-            q.to = queryTo;
-        }
-        return q;
-    }, [querySearch, queryMethod, queryFrom, queryTo]);
+    const buildListQuery = useCallback(
+        (deletedView = showDeleted) => {
+            const q = {};
+            if (querySearch) {
+                q.search = querySearch;
+            }
+            if (queryMethod) {
+                q.method = queryMethod;
+            }
+            if (queryZone) {
+                q.zone = queryZone;
+            }
+            if (queryFrom) {
+                q.from = queryFrom;
+            }
+            if (queryTo) {
+                q.to = queryTo;
+            }
+            if (deletedView && canDeletePayments) {
+                q.show_deleted = 1;
+            }
+            return q;
+        },
+        [querySearch, queryMethod, queryZone, queryFrom, queryTo, showDeleted, canDeletePayments]
+    );
+
+    const filterQuery = useCallback(() => buildListQuery(showDeleted), [buildListQuery, showDeleted]);
 
     // ກອງປະຫວັດ + ໂຫຼດສະຖິຕິໃໝ່ຈາກເຊີເວີ
     const applyFilters = () => {
+        setHistoryPage(1);
         setStatsLoading(true);
         router.get(route(routes.payments), filterQuery(), {
             preserveScroll: true,
@@ -137,66 +190,134 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                 note: paymentNote || null,
                 search: querySearch,
                 method_filter: queryMethod,
+                zone_filter: queryZone,
                 from: queryFrom,
                 to: queryTo,
             },
             {
                 preserveScroll: true,
                 onFinish: () => setSubmitting(false),
-                onSuccess: () => {
+                onSuccess: (page) => {
+                    const newPayments = page.props?.payments ?? [];
+                    const match = newPayments
+                        .filter((p) => String(p.service_id) === String(checkoutRow.service_id))
+                        .sort((a, b) => Number(b.id) - Number(a.id))[0];
                     closeCheckout();
                     toastSuccess('ຊຳລະເງິນສຳເລັດແລ້ວ');
+                    if (match) {
+                        openPaymentReceiptPrint(match);
+                    }
                 },
             }
         );
     };
 
-    const deletePayment = async (row) => {
-        const qs = new URLSearchParams();
-        if (querySearch) {
-            qs.set('search', querySearch);
+    const openVoidDialog = (row) => {
+        if (!canDeletePayments || deleteBusy || showDeleted) {
+            return;
         }
-        if (queryMethod) {
-            qs.set('method', queryMethod);
-        }
-        if (queryFrom) {
-            qs.set('from', queryFrom);
-        }
-        if (queryTo) {
-            qs.set('to', queryTo);
-        }
-        const suffix = qs.toString() ? `?${qs.toString()}` : '';
-        const deleteUrl = `${route(routes.paymentsDestroy, row.id)}${suffix}`;
+        setVoidError('');
+        setVoidTarget(row);
+    };
 
-        const result = await Swal.fire({
-            icon: 'warning',
-            title: 'ລຶບບິນຊຳລະນີ້?',
-            html: `<p class="text-left text-slate-600">Payment #${row.id}</p><p class="mt-1 text-left font-semibold text-slate-800">${formatAmount(row.total_amount)} K · ${row.table_no ?? '—'}</p>`,
-            showCancelButton: true,
-            confirmButtonText: 'ລຶບ',
-            cancelButtonText: 'ຍົກເລີກ',
-            confirmButtonColor: primary,
-            cancelButtonColor: '#64748b',
-            reverseButtons: true,
-            focusCancel: true,
-            customClass: { popup: 'font-sans text-sm' },
-        });
-        if (!result.isConfirmed) {
+    const closeVoidDialog = () => {
+        if (deleteBusy) {
+            return;
+        }
+        setVoidTarget(null);
+        setVoidError('');
+    };
+
+    const submitVoidPayment = ({ reason, password }) => {
+        const row = voidTarget;
+        if (!row || deleteBusy) {
             return;
         }
 
+        const qs = new URLSearchParams(filterQuery());
+        const suffix = qs.toString() ? `?${qs.toString()}` : '';
+        const deleteUrl = `${route(routes.paymentsDestroy, row.id)}${suffix}`;
+
+        setDeleteBusy(true);
+        setVoidError('');
         router.delete(deleteUrl, {
+            data: { reason, password },
             preserveScroll: true,
-            onSuccess: () => toastSuccess('ລຶບລາຍການຊຳລະເງິນສຳເລັດແລ້ວ'),
-            onError: () => {
-                void Swal.fire({
-                    icon: 'error',
-                    title: 'ລຶບບໍ່ສຳເລັດ',
-                    text: 'ລອງໃໝ່ ຫຼື ຕິດຕໍ່ຜູ້ດູແລລະບົບ',
-                    confirmButtonColor: primary,
-                    customClass: { popup: 'font-sans text-sm' },
-                });
+            onSuccess: () => {
+                setVoidTarget(null);
+                toastSuccess('ຍົກເລີກບິນຊຳລະສຳເລັດແລ້ວ');
             },
+            onError: (errors) => {
+                setVoidError(errors?.password || errors?.reason || 'ລອງໃໝ່ ຫຼື ຕິດຕໍ່ຜູ້ດູແລລະບົບ');
+            },
+            onFinish: () => setDeleteBusy(false),
+        });
+    };
+
+    const voidedListSuffix = () => {
+        const qs = new URLSearchParams(buildListQuery(true));
+        const suffix = qs.toString();
+        return suffix ? `?${suffix}` : '';
+    };
+
+    const confirmRestoreVoided = () => {
+        const row = restoreTarget;
+        if (!row || voidActionBusy || !canDeletePayments) {
+            return;
+        }
+
+        setVoidActionBusy(true);
+        router.post(`${route(routes.paymentsRestore, row.id)}${voidedListSuffix()}`, {}, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setRestoreTarget(null);
+                toastSuccess('ກູ້ຄືນບິນຊຳລະສຳເລັດແລ້ວ');
+            },
+            onFinish: () => setVoidActionBusy(false),
+        });
+    };
+
+    const openEditVoided = (row) => {
+        if (!canDeletePayments || voidActionBusy) {
+            return;
+        }
+        setEditVoidError('');
+        setEditVoidTarget(row);
+    };
+
+    const closeEditVoided = () => {
+        if (voidActionBusy) {
+            return;
+        }
+        setEditVoidTarget(null);
+        setEditVoidError('');
+    };
+
+    const submitEditVoided = ({ total_amount, method, reason }) => {
+        const row = editVoidTarget;
+        if (!row || voidActionBusy) {
+            return;
+        }
+
+        setVoidActionBusy(true);
+        setEditVoidError('');
+        router.patch(`${route(routes.paymentsCorrectVoided, row.id)}${voidedListSuffix()}`, {
+            total_amount,
+            method,
+            reason,
+        }, {
+            preserveScroll: true,
+            onSuccess: () => {
+                setEditVoidTarget(null);
+                setShowDeleted(false);
+                toastSuccess('ແກ້ໄຂແລະກູ້ຄືນບິນຊຳລະສຳເລັດແລ້ວ');
+            },
+            onError: (errors) => {
+                setEditVoidError(
+                    errors?.total_amount || errors?.method || errors?.reason || 'ບັນທຶກບໍ່ສຳເລັດ — ລອງໃໝ່'
+                );
+            },
+            onFinish: () => setVoidActionBusy(false),
         });
     };
 
@@ -237,7 +358,7 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                             </p>
                         </div>
 
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                 <p className="text-xs font-bold text-slate-500">ຈຳນວນບິນ / ຍອດລວມ</p>
                                 <p className="mt-1 text-2xl font-extrabold text-slate-900">{summary.count ?? 0}</p>
@@ -257,6 +378,20 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                 <p className="text-xs font-bold text-slate-500">ເງິນໂອນ</p>
                                 <p className="text-lg font-bold text-slate-900">{formatAmount(summary.transfer)} K</p>
                             </div>
+                            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div className="mb-1 inline-flex rounded-lg bg-amber-100 p-1.5 text-amber-700">
+                                    <Landmark className="h-4 w-4" />
+                                </div>
+                                <p className="text-xs font-bold text-slate-500">ບັດເຄຣດິດ</p>
+                                <p className="text-lg font-bold text-slate-900">{formatAmount(summary.credit_card ?? 0)} K</p>
+                            </div>
+                            {canDeletePayments ? (
+                                <div className="rounded-2xl border border-rose-200 bg-rose-50/80 p-4">
+                                    <p className="text-xs font-bold text-rose-700">ຍອດເງິນທີ່ຖືກຍົກເລີກ</p>
+                                    <p className="mt-1 text-lg font-bold text-rose-900">{formatAmount(summary.voided_total ?? 0)} K</p>
+                                    <p className="text-xs font-semibold text-rose-600">{summary.voided_count ?? 0} ບິນ</p>
+                                </div>
+                            ) : null}
                         </div>
                     </section>
 
@@ -306,8 +441,48 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                     </section>
 
                     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-md shadow-slate-200/80">
-                        <h3 className="text-2xl font-bold tracking-tight text-[#0f2744]">ປະຫວັດການຊຳລະເງິນ</h3>
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                            <h3 className="text-2xl font-bold tracking-tight text-[#0f2744]">ປະຫວັດການຊຳລະເງິນ</h3>
+                            {canDeletePayments ? (
+                                <div className="inline-flex rounded-xl border border-slate-200 bg-slate-50 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowDeleted(false);
+                                            setStatsLoading(true);
+                                            router.get(route(routes.payments), buildListQuery(false), {
+                                                preserveScroll: true,
+                                                replace: true,
+                                                onFinish: () => setStatsLoading(false),
+                                            });
+                                        }}
+                                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                                            !showDeleted ? 'bg-white text-[#194c9f] shadow-sm' : 'text-slate-600'
+                                        }`}
+                                    >
+                                        ບິນປົກກະຕິ
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowDeleted(true);
+                                            setStatsLoading(true);
+                                            router.get(route(routes.payments), buildListQuery(true), {
+                                                preserveScroll: true,
+                                                replace: true,
+                                                onFinish: () => setStatsLoading(false),
+                                            });
+                                        }}
+                                        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+                                            showDeleted ? 'bg-white text-rose-700 shadow-sm' : 'text-slate-600'
+                                        }`}
+                                    >
+                                        ບິນທີ່ຖືກຍົກເລີກ
+                                    </button>
+                                </div>
+                            ) : null}
+                        </div>
+                        <div className="mt-4 flex flex-wrap items-end gap-3">
                             <div className="relative w-full max-w-sm">
                                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <input
@@ -322,7 +497,7 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                 value={queryMethod}
                                 onChange={(e) => setQueryMethod(e.target.value)}
                                 aria-label="ກອງຕາມວິທີຊຳລະ"
-                                className="h-11 w-[6.75rem] shrink-0 rounded-xl border border-slate-200 bg-white py-2 pl-2 pr-7 text-xs font-medium leading-snug text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                className="h-11 min-w-[6.75rem] shrink-0 rounded-xl border border-slate-200 bg-white py-2 pl-2 pr-7 text-xs font-medium leading-snug text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
                             >
                                 {methodOptions.map((opt) => (
                                     <option key={opt.value} value={opt.value}>
@@ -330,18 +505,50 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                     </option>
                                 ))}
                             </select>
-                            <input
-                                type="date"
-                                value={queryFrom}
-                                onChange={(e) => setQueryFrom(e.target.value)}
-                                className="h-11 min-w-[11rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
-                            />
-                            <input
-                                type="date"
-                                value={queryTo}
-                                onChange={(e) => setQueryTo(e.target.value)}
-                                className="h-11 min-w-[11rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
-                            />
+                            <div className="flex flex-col gap-1">
+                                <label htmlFor="payments-zone-filter" className="text-xs font-bold text-slate-600">
+                                    ເລືອກໂຊນ
+                                </label>
+                                <select
+                                    id="payments-zone-filter"
+                                    value={queryZone}
+                                    onChange={(e) => setQueryZone(e.target.value)}
+                                    aria-label="ເລືອກໂຊນ"
+                                    className="h-11 min-w-[10.5rem] rounded-xl border border-slate-200 bg-white px-2 py-2 pr-7 text-xs font-medium leading-snug text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                >
+                                    {zoneFilterOptions.map((opt) => (
+                                        <option key={opt.value || 'all'} value={opt.value}>
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label htmlFor="payments-date-from" className="text-xs font-bold text-slate-600">
+                                    ຕັ້ງແຕ່
+                                </label>
+                                <input
+                                    id="payments-date-from"
+                                    type="date"
+                                    value={queryFrom}
+                                    max={queryTo || undefined}
+                                    onChange={(e) => setQueryFrom(e.target.value)}
+                                    className="h-11 min-w-[11rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label htmlFor="payments-date-to" className="text-xs font-bold text-slate-600">
+                                    ຫາ
+                                </label>
+                                <input
+                                    id="payments-date-to"
+                                    type="date"
+                                    value={queryTo}
+                                    min={queryFrom || undefined}
+                                    onChange={(e) => setQueryTo(e.target.value)}
+                                    className="h-11 min-w-[11rem] rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                />
+                            </div>
                             <button
                                 type="button"
                                 onClick={applyFilters}
@@ -353,73 +560,147 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                             </button>
                         </div>
 
+                        <div className="mt-3">
+                            <p className="inline-flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-2.5 text-sm font-bold text-emerald-950 shadow-sm">
+                                <span>ຍອດລວມທັງໝົດຕາມຕົວຕອງ:</span>
+                                <span className="tabular-nums text-emerald-900">
+                                    {formatAmount(summary?.total ?? 0)} K
+                                </span>
+                            </p>
+                        </div>
+
                         <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
                             <table className="min-w-full divide-y divide-slate-200 text-sm">
                                 <thead className="bg-slate-100 text-slate-700">
                                     <tr>
                                         <th className="px-3 py-2 text-left font-bold">Payment ID</th>
                                         <th className="px-3 py-2 text-left font-bold">ລະຫັດບໍລິການ</th>
-                                        <th className="px-3 py-2 text-left font-bold">ພະນັກງານ</th>
+                                        {!showDeleted ? (
+                                            <th className="px-3 py-2 text-left font-bold">ພະນັກງານ</th>
+                                        ) : null}
                                         <th className="px-3 py-2 text-left font-bold">ໂຕະ</th>
                                         <th className="px-3 py-2 text-left font-bold">ຍອດລວມ</th>
-                                        <th className="px-3 py-2 text-left font-bold">ວິທີຊຳລະ</th>
-                                        <th className="px-3 py-2 text-left font-bold">ໝາຍເຫດ</th>
-                                        <th className="px-3 py-2 text-left font-bold">ເວລາຊຳລະ</th>
-                                        <th className="px-3 py-2 text-left font-bold">ຈັດການ</th>
+                                        {!showDeleted ? (
+                                            <th className="px-3 py-2 text-left font-bold">ວິທີຊຳລະ</th>
+                                        ) : null}
+                                        {showDeleted ? (
+                                            <>
+                                                <th className="px-3 py-2 text-left font-bold">ເຫດຜົນຍົກເລີກ</th>
+                                                <th className="px-3 py-2 text-left font-bold">ຍົກເລີກໂດຍ</th>
+                                                <th className="px-3 py-2 text-left font-bold">ເວລາຍົກເລີກ</th>
+                                                {canDeletePayments ? (
+                                                    <th className="px-3 py-2 text-left font-bold">ຈັດການ</th>
+                                                ) : null}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <th className="px-3 py-2 text-left font-bold">ໝາຍເຫດ</th>
+                                                <th className="px-3 py-2 text-left font-bold">ເວລາຊຳລະ</th>
+                                                <th className="px-3 py-2 text-left font-bold">ຈັດການ</th>
+                                            </>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 bg-white">
-                                    {payments.map((row) => (
-                                        <tr key={row.id}>
+                                    {pagedPayments.map((row) => (
+                                        <tr key={row.id} className={showDeleted ? 'bg-rose-50/40' : undefined}>
                                             <td className="px-3 py-2 font-semibold">{row.id}</td>
                                             <td className="px-3 py-2 font-semibold" style={{ color: primary }}>
                                                 {row.service_id}
                                             </td>
-                                            <td className="px-3 py-2">{row.staff_name ?? '—'}</td>
+                                            {!showDeleted ? <td className="px-3 py-2">{row.staff_name ?? '—'}</td> : null}
                                             <td className="px-3 py-2 font-semibold" style={{ color: primary }}>
                                                 {row.table_no}
                                             </td>
                                             <td className="px-3 py-2 font-semibold">{formatAmount(row.total_amount)} K</td>
-                                            <td className="px-3 py-2">
-                                                {row.method === 'cash' ? (
-                                                    <StatusBadge label="ເງິນສົດ" tone="success" />
-                                                ) : (
-                                                    <StatusBadge label="ເງິນໂອນ" tone="info" />
-                                                )}
-                                            </td>
-                                            <td className="max-w-[140px] truncate px-3 py-2 text-slate-600">{row.note || '—'}</td>
-                                            <td className="px-3 py-2">{row.payment_time}</td>
-                                            <td className="px-3 py-2">
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => printReceipt(row)}
-                                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700"
-                                                    >
-                                                        <Printer className="h-3.5 w-3.5" />
-                                                        ພິມບິນ
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => deletePayment(row)}
-                                                        className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-xs font-semibold text-rose-600"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                        ລົບ
-                                                    </button>
-                                                </div>
-                                            </td>
+                                            {!showDeleted ? (
+                                                <td className="px-3 py-2">
+                                                    <StatusBadge
+                                                        label={paymentMethodLabel(row.method)}
+                                                        tone={paymentMethodBadgeTone(row.method)}
+                                                    />
+                                                </td>
+                                            ) : null}
+                                            {showDeleted ? (
+                                                <>
+                                                    <td className="max-w-[180px] px-3 py-2 text-slate-700">{row.deletion_reason ?? '—'}</td>
+                                                    <td className="px-3 py-2">{row.deleted_by_name ?? '—'}</td>
+                                                    <td className="px-3 py-2">{row.deleted_at ?? '—'}</td>
+                                                    {canDeletePayments ? (
+                                                        <td className="px-3 py-2">
+                                                            <div className="flex flex-wrap gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setRestoreTarget(row)}
+                                                                    disabled={voidActionBusy}
+                                                                    className="inline-flex items-center gap-1 rounded-lg border border-emerald-300 bg-white px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
+                                                                    title="ກູ້ຄືນບິນ"
+                                                                >
+                                                                    <RotateCcw className="h-3.5 w-3.5" />
+                                                                    ກູ້ຄືນ
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openEditVoided(row)}
+                                                                    disabled={voidActionBusy}
+                                                                    className="inline-flex items-center gap-1 rounded-lg border border-sky-300 bg-white px-2.5 py-1 text-xs font-semibold text-sky-700 transition hover:bg-sky-50 disabled:opacity-50"
+                                                                    title="ແກ້ໄຂບິນ"
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                    ແກ້ໄຂ
+                                                                </button>
+                                                            </div>
+                                                        </td>
+                                                    ) : null}
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <td className="max-w-[140px] truncate px-3 py-2 text-slate-600">{row.note || '—'}</td>
+                                                    <td className="px-3 py-2">{row.payment_time}</td>
+                                                    <td className="px-3 py-2">
+                                                        <div className="flex gap-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => printReceipt(row)}
+                                                                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700"
+                                                            >
+                                                                <Printer className="h-3.5 w-3.5" />
+                                                                ພິມບິນ
+                                                            </button>
+                                                            {canDeletePayments ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openVoidDialog(row)}
+                                                                    disabled={deleteBusy}
+                                                                    className="inline-flex items-center gap-1 rounded-lg border border-rose-300 bg-white px-2.5 py-1 text-xs font-semibold text-rose-600 disabled:opacity-50"
+                                                                >
+                                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                                    ຍົກເລີກ
+                                                                </button>
+                                                            ) : null}
+                                                        </div>
+                                                    </td>
+                                                </>
+                                            )}
                                         </tr>
                                     ))}
                                     {payments.length === 0 && (
                                         <tr>
-                                            <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
-                                                ບໍ່ພົບຂໍ້ມູນຊຳລະເງິນ
+                                            <td colSpan={showDeleted ? (canDeletePayments ? 8 : 7) : 9} className="px-3 py-8 text-center text-slate-500">
+                                                {showDeleted ? 'ບໍ່ພົບບິນທີ່ຖືກຍົກເລີກ' : 'ບໍ່ພົບຂໍ້ມູນຊຳລະເງິນ'}
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
+                            <div className="border-t border-slate-100 px-3 pb-3">
+                                <TablePagination
+                                    page={historyPage}
+                                    onPageChange={setHistoryPage}
+                                    totalItems={payments.length}
+                                    pageSize={PAGE_SIZE}
+                                />
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -472,6 +753,22 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                                         <span className="font-bold text-slate-600">Tier:</span> {checkoutRow.buffet_tier}
                                     </p>
                                 </div>
+
+                                {Array.isArray(checkoutRow.items) && checkoutRow.items.length > 0 ? (
+                                    <div className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm">
+                                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">ລາຍການ</p>
+                                        <ul className="space-y-2">
+                                            {checkoutRow.items.map((item, idx) => (
+                                                <li key={`${item.label}-${idx}`} className="flex justify-between gap-3 text-slate-800">
+                                                    <span className="min-w-0 flex-1 break-words">{item.label}</span>
+                                                    <span className="shrink-0 font-semibold tabular-nums">
+                                                        {formatAmount(item.amount)} K
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ) : null}
 
                                 <div className="grid gap-3">
                                     <div>
@@ -563,6 +860,49 @@ export default function PaymentsPage({ payments = [], summary = {}, filters = {}
                     </div>
                 </div>
             )}
+
+            <VoidPaymentDialog
+                open={Boolean(voidTarget)}
+                row={voidTarget}
+                onClose={closeVoidDialog}
+                onConfirm={submitVoidPayment}
+                processing={deleteBusy}
+                serverError={voidError}
+            />
+
+            <ConfirmDialog
+                open={Boolean(restoreTarget)}
+                onClose={() => !voidActionBusy && setRestoreTarget(null)}
+                title="ກູ້ຄືນບິນທີ່ຖືກຍົກເລີກ?"
+                message={
+                    restoreTarget ? (
+                        <div className="space-y-1">
+                            <p>
+                                Payment #{restoreTarget.id} · {formatAmount(restoreTarget.total_amount)} K · ໂຕະ{' '}
+                                {restoreTarget.table_no ?? '—'}
+                            </p>
+                            <p className="text-slate-500">ບິນນີ້ຈະກັບເຂົ້າລາຍການປົກກະຕິ ແລະ ບັນທຶກການກວດສອບ.</p>
+                        </div>
+                    ) : (
+                        ''
+                    )
+                }
+                cancelLabel="ຍົກເລີກ"
+                confirmLabel="ກູ້ຄືນ"
+                onConfirm={confirmRestoreVoided}
+                processing={voidActionBusy}
+                primaryColor={primary}
+                danger={false}
+            />
+
+            <EditVoidedPaymentDialog
+                open={Boolean(editVoidTarget)}
+                row={editVoidTarget}
+                onClose={closeEditVoided}
+                onConfirm={submitEditVoided}
+                processing={voidActionBusy}
+                serverError={editVoidError}
+            />
         </AdminLayout>
     );
 }

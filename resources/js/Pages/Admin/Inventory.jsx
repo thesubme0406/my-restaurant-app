@@ -9,35 +9,33 @@ import {
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import FlashAlert from '@/Components/Admin/Common/FlashAlert';
+import TablePagination from '@/Components/Admin/Common/TablePagination';
+import ConfirmDialog from '@/Components/MasterData/ConfirmDialog';
+import { PAGE_SIZE, paginateSlice } from '@/Components/Reports/reportTableUtils';
 import { CalendarDays, ChevronDown, Pencil, Search, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { formatAmount } from '@/utils/formatAmount';
+import { inventoryRouteNames } from '@/utils/routeNamesFromUrl';
 
 const primary = '#194c9f';
 
-function routeNamesFromUrl(url) {
-    const path = typeof url === 'string' ? url.split('?')[0] : '';
-    const isAdmin = path.startsWith('/admin');
-    return {
-        inventoryStore: isAdmin ? 'admin.inventory.store' : 'staff.inventory.store',
-        inventoryUpdate: isAdmin ? 'admin.inventory.update' : 'staff.inventory.update',
-        inventoryDestroy: isAdmin ? 'admin.inventory.destroy' : 'staff.inventory.destroy',
-    };
-}
-
 export default function InventoryPage({ ingredients = [], usageRows = [] }) {
     const page = usePage();
-    const routes = useMemo(() => routeNamesFromUrl(page.url ?? ''), [page.url]);
+    const routes = useMemo(() => inventoryRouteNames(page.url ?? ''), [page.url]);
     const pageErrors = page.props.errors ?? {};
     const flashSuccess = page.props.flash?.success;
     const [search, setSearch] = useState('');
-    const [dateFilter, setDateFilter] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
     const [ingQuery, setIngQuery] = useState('');
     const [editingRow, setEditingRow] = useState(null);
     const [editQty, setEditQty] = useState('');
     const [editNote, setEditNote] = useState('');
     const [editBusy, setEditBusy] = useState(false);
-    const [deleteBusyId, setDeleteBusyId] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [deleteBusy, setDeleteBusy] = useState(false);
+    const [usageConfirmOpen, setUsageConfirmOpen] = useState(false);
+    const [usageHistoryPage, setUsageHistoryPage] = useState(1);
 
     const form = useForm({
         ing_id: ingredients[0]?.id ? String(ingredients[0].id) : '',
@@ -74,17 +72,49 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                 String(row.ingredient_name ?? '').toLowerCase().includes(q) ||
                 String(row.staff_name ?? '').toLowerCase().includes(q) ||
                 String(row.usage_detail ?? '').toLowerCase().includes(q);
-            const byDate = !dateFilter || row.usage_date_iso === dateFilter;
+            const byDate = (() => {
+                const iso = row.usage_date_iso;
+                if (!iso) {
+                    return !dateFrom && !dateTo;
+                }
+                if (dateFrom && iso < dateFrom) {
+                    return false;
+                }
+                if (dateTo && iso > dateTo) {
+                    return false;
+                }
+                return true;
+            })();
             return byText && byDate;
         });
-    }, [usageRows, search, dateFilter]);
+    }, [usageRows, search, dateFrom, dateTo]);
 
-    const submitUsage = (e) => {
+    const { pageRows: pagedUsageRows, startIdx: usageStartIdx } = useMemo(
+        () => paginateSlice(filteredRows, usageHistoryPage, PAGE_SIZE),
+        [filteredRows, usageHistoryPage]
+    );
+
+    useEffect(() => {
+        setUsageHistoryPage(1);
+    }, [usageRows, search, dateFrom, dateTo]);
+
+    const requestSubmitUsage = (e) => {
         e.preventDefault();
+        if (form.processing || invalidQty || !form.data.ing_id) {
+            return;
+        }
+        setUsageConfirmOpen(true);
+    };
+
+    const execSubmitUsage = () => {
+        if (form.processing || invalidQty || !form.data.ing_id) {
+            return;
+        }
         form.post(route(routes.inventoryStore), {
             preserveScroll: true,
             onSuccess: () => {
                 form.reset('usage_qty', 'usage_detail');
+                setUsageConfirmOpen(false);
             },
         });
     };
@@ -115,18 +145,25 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
         );
     };
 
-    const runDelete = (row) => {
-        if (deleteBusyId != null) {
+    const askDelete = (row) => {
+        if (deleteBusy) {
             return;
         }
-        const ok = window.confirm(`ຢືນຢັນລຶບປະຫວັດການເບີກຂອງ “${row.ingredient_name}” ?`);
-        if (!ok) {
+        setDeleteTarget(row);
+    };
+
+    const execDelete = () => {
+        const row = deleteTarget;
+        if (!row || deleteBusy) {
             return;
         }
-        setDeleteBusyId(row.id);
+        setDeleteBusy(true);
         router.delete(route(routes.inventoryDestroy, row.id), {
             preserveScroll: true,
-            onFinish: () => setDeleteBusyId(null),
+            onFinish: () => {
+                setDeleteBusy(false);
+                setDeleteTarget(null);
+            },
         });
     };
 
@@ -152,7 +189,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
 
                     <section className="rounded-2xl border border-slate-100 bg-white p-5 font-sans shadow-md shadow-slate-200/80">
                         <h2 className="text-2xl font-bold tracking-tight text-[#0f2744]">ຟອມເບີກວັດຖຸດິບ</h2>
-                        <form onSubmit={submitUsage} className="mt-4">
+                        <form onSubmit={requestSubmitUsage} className="mt-4">
                             {ingredients.length === 0 ? (
                                 <p className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                                     ຍັງບໍ່ມີວັດຖຸດິບໃນລະບົບ
@@ -282,7 +319,7 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
 
                     <section className="rounded-2xl border border-slate-100 bg-white p-5 shadow-md shadow-slate-200/80">
                         <h2 className="text-2xl font-bold tracking-tight text-[#0f2744]">ປະຫວັດການເບີກວັດຖຸດິບ</h2>
-                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                        <div className="mt-4 flex flex-wrap items-end gap-3">
                             <div className="relative w-full max-w-sm">
                                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <input
@@ -293,14 +330,33 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                                     className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
                                 />
                             </div>
-                            <div className="relative">
+                            <div className="flex flex-col gap-1">
+                                <label htmlFor="usage-date-from" className="text-xs font-bold text-slate-600">ຕັ້ງແຕ່</label>
+                                <div className="relative">
                                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                                 <input
+                                    id="usage-date-from"
                                     type="date"
-                                    value={dateFilter}
-                                    onChange={(e) => setDateFilter(e.target.value)}
-                                    className="rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                    value={dateFrom}
+                                    max={dateTo || undefined}
+                                    onChange={(e) => setDateFrom(e.target.value)}
+                                    className="min-w-[11rem] rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
                                 />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label htmlFor="usage-date-to" className="text-xs font-bold text-slate-600">ຫາ</label>
+                                <div className="relative">
+                                <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                                <input
+                                    id="usage-date-to"
+                                    type="date"
+                                    value={dateTo}
+                                    min={dateFrom || undefined}
+                                    onChange={(e) => setDateTo(e.target.value)}
+                                    className="min-w-[11rem] rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 text-sm text-slate-800 outline-none focus:border-[#194c9f] focus:ring-2 focus:ring-[#194c9f]/20"
+                                />
+                                </div>
                             </div>
                         </div>
 
@@ -318,9 +374,9 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 bg-white">
-                                    {filteredRows.map((row, idx) => (
+                                    {pagedUsageRows.map((row, idx) => (
                                         <tr key={row.id}>
-                                            <td className="px-3 py-2">{idx + 1}</td>
+                                            <td className="px-3 py-2">{usageStartIdx + idx + 1}</td>
                                             <td className="px-3 py-2">{row.usage_date}</td>
                                             <td className="px-3 py-2 font-semibold" style={{ color: primary }}>
                                                 {row.ingredient_name}
@@ -344,8 +400,8 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                                                     <button
                                                         type="button"
                                                         className="inline-flex items-center rounded-lg border border-rose-300 bg-white px-2 py-1 text-rose-600"
-                                                        onClick={() => runDelete(row)}
-                                                        disabled={deleteBusyId === row.id}
+                                                        onClick={() => askDelete(row)}
+                                                        disabled={deleteBusy && deleteTarget?.id === row.id}
                                                     >
                                                         <Trash2 className="h-3.5 w-3.5" />
                                                     </button>
@@ -362,6 +418,14 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                                     )}
                                 </tbody>
                             </table>
+                            <div className="border-t border-slate-100 px-3 pb-3">
+                                <TablePagination
+                                    page={usageHistoryPage}
+                                    onPageChange={setUsageHistoryPage}
+                                    totalItems={filteredRows.length}
+                                    pageSize={PAGE_SIZE}
+                                />
+                            </div>
                         </div>
                     </section>
                 </div>
@@ -419,6 +483,54 @@ export default function InventoryPage({ ingredients = [], usageRows = [] }) {
                     </div>
                 </div>
             )}
+            <ConfirmDialog
+                open={usageConfirmOpen}
+                onClose={() => !form.processing && setUsageConfirmOpen(false)}
+                title="ຢືນຢັນການເບີກວັດຖຸດິບ"
+                message={
+                    selectedIngredient ? (
+                        <div className="space-y-2">
+                            <p>
+                                ທ່ານຕ້ອງການເບີກ <span className="font-semibold text-slate-900">{selectedIngredient.ing_name}</span>{' '}
+                                ຈຳນວນ{' '}
+                                <span className="font-semibold text-slate-900">
+                                    {formatAmount(enteredQty)} {selectedIngredient.ing_unit}
+                                </span>
+                                ?
+                            </p>
+                            {form.data.usage_detail?.trim() ? (
+                                <p className="text-slate-600">
+                                    ໝາຍເຫດ: <span className="font-medium text-slate-800">{form.data.usage_detail.trim()}</span>
+                                </p>
+                            ) : null}
+                            <p className="text-slate-500">ກົດຢືນຢັນເພື່ອບັນທຶກການເບີກນີ້.</p>
+                        </div>
+                    ) : (
+                        ''
+                    )
+                }
+                cancelLabel="ຍົກເລີກ"
+                confirmLabel="ຢືນຢັນເບີກ"
+                onConfirm={execSubmitUsage}
+                processing={form.processing}
+                primaryColor={primary}
+                danger={false}
+            />
+            <ConfirmDialog
+                open={Boolean(deleteTarget)}
+                onClose={() => !deleteBusy && setDeleteTarget(null)}
+                title="ຢືນຢັນການລຶບ"
+                message={
+                    deleteTarget
+                        ? `ທ່ານຕ້ອງການລຶບປະຫວັດການເບີກຂອງ “${deleteTarget.ingredient_name}” ແທ້ບໍ? ການກະທຳນີ້ບໍ່ສາມາດກູ້ຄືນໄດ້.`
+                        : ''
+                }
+                cancelLabel="ຍົກເລີກ"
+                confirmLabel="ລຶບຖາວອນ"
+                onConfirm={execDelete}
+                processing={deleteBusy}
+                primaryColor={primary}
+            />
         </AdminLayout>
     );
 }

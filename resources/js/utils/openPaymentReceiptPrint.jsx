@@ -16,6 +16,97 @@ function injectStyles(doc) {
     doc.head.appendChild(sheet);
 }
 
+const RECEIPT_WIDTH_MM = 80;
+
+/** Fit PDF / print page to thermal receipt width and measured content height. */
+function applyReceiptPrintPageSize(win) {
+    const receipt = win.document.querySelector('.payment-receipt');
+    if (!receipt) {
+        return;
+    }
+
+    const pxPerMm = 96 / 25.4;
+    const contentHeightMm = Math.ceil(receipt.getBoundingClientRect().height / pxPerMm);
+    const pageHeightMm = Math.max(contentHeightMm + 8, 60);
+
+    win.document.querySelector('style[data-receipt-page-size]')?.remove();
+
+    const style = win.document.createElement('style');
+    style.setAttribute('data-receipt-page-size', '1');
+    style.textContent = `
+        html, body {
+            width: ${RECEIPT_WIDTH_MM}mm;
+            margin: 0 auto;
+            padding: 0;
+            background: #fff;
+        }
+
+        .payment-receipt {
+            width: ${RECEIPT_WIDTH_MM}mm;
+            max-width: ${RECEIPT_WIDTH_MM}mm;
+            margin: 0;
+        }
+
+        @media print {
+            @page {
+                size: ${RECEIPT_WIDTH_MM}mm ${pageHeightMm}mm;
+                margin: 0;
+            }
+
+            html, body {
+                width: ${RECEIPT_WIDTH_MM}mm !important;
+                min-height: ${pageHeightMm}mm !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            .payment-receipt {
+                width: ${RECEIPT_WIDTH_MM}mm !important;
+                max-width: ${RECEIPT_WIDTH_MM}mm !important;
+                margin: 0 !important;
+                padding: 4mm !important;
+            }
+        }
+    `;
+    win.document.head.appendChild(style);
+}
+
+function whenReceiptReady(win, callback) {
+    const receipt = win.document.querySelector('.payment-receipt');
+    if (!receipt) {
+        window.setTimeout(() => whenReceiptReady(win, callback), 50);
+        return;
+    }
+
+    const finish = () => {
+        applyReceiptPrintPageSize(win);
+        callback();
+    };
+
+    const images = [...win.document.images].filter((img) => !img.complete);
+    if (images.length === 0) {
+        if (win.document.fonts?.ready) {
+            win.document.fonts.ready.then(finish).catch(finish);
+        } else {
+            finish();
+        }
+        return;
+    }
+
+    let settled = 0;
+    const onSettled = () => {
+        settled += 1;
+        if (settled >= images.length) {
+            finish();
+        }
+    };
+
+    images.forEach((img) => {
+        img.addEventListener('load', onSettled);
+        img.addEventListener('error', onSettled);
+    });
+}
+
 /**
  * ເປີດໜ້າຕ່າງພິມທີ່ມີແຕ່ PaymentReceipt (ບໍ່ມີແຖບນຳທາງ / ແຜງຂ້າງ).
  * @param {Record<string, unknown>} row — ແຖວຈາກ Inertia payments list
@@ -46,8 +137,8 @@ export function openPaymentReceiptPrint(row) {
     const root = createRoot(mount);
     root.render(<PaymentReceipt {...buildPaymentReceiptProps(row)} />);
 
-    setTimeout(() => {
+    whenReceiptReady(win, () => {
         win.focus();
         win.print();
-    }, 500);
+    });
 }

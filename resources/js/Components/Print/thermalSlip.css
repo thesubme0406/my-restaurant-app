@@ -1,0 +1,168 @@
+/* 80mm thermal slips — shared with payment receipt styling */
+.thermal-slip {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 10px 8px 16px;
+    color: #1e293b;
+    background: #fff;
+    font-family: 'Noto Sans Lao', ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    line-height: 1.45;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.thermal-slip__logo-wrap {
+    text-align: center;
+    margin-bottom: 6px;
+}
+
+.thermal-slip__logo {
+    width: 72px;
+    height: 72px;
+    object-fit: contain;
+}
+
+.thermal-slip__brand {
+    margin: 0 0 2px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #0a2d66;
+}
+
+.thermal-slip__title {
+    margin: 0 0 10px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #334155;
+}
+
+.thermal-slip__dash {
+    border: none;
+    border-top: 1px dashed #94a3b8;
+    margin: 10px 0;
+    height: 0;
+}
+
+.thermal-slip__dash-text {
+    margin: 8px 0;
+    text-align: center;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: #94a3b8;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.thermal-slip__hero-wrap {
+    margin: 8px 0 12px;
+    padding: 10px 6px;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #f8fafc;
+}
+
+.thermal-slip__hero-label {
+    margin: 0 0 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+}
+
+.thermal-slip__hero {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    line-height: 1.05;
+    color: #0a2d66;
+    word-break: break-word;
+}
+
+.thermal-slip__hero--vip {
+    font-size: 40px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: #a16207;
+    text-transform: uppercase;
+}
+
+.thermal-slip__meta {
+    font-size: 10.5px;
+    line-height: 1.55;
+    margin-bottom: 4px;
+}
+
+.thermal-slip__meta-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 5px 0;
+}
+
+.thermal-slip__meta-key {
+    color: #64748b;
+    flex-shrink: 0;
+}
+
+.thermal-slip__meta-val {
+    text-align: right;
+    font-weight: 600;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.thermal-slip__footer {
+    margin: 12px 0 0;
+    padding-top: 10px;
+    border-top: 1px dashed #94a3b8;
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #334155;
+}
+
+.thermal-slip__printed {
+    margin: 8px 0 0;
+    text-align: center;
+    font-size: 9px;
+    color: #94a3b8;
+}
+
+@media print {
+    @page {
+        size: 80mm auto;
+        margin: 0;
+    }
+
+    html,
+    body {
+        width: 80mm;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #fff !important;
+    }
+
+    .thermal-slip {
+        max-width: none;
+        width: 80mm;
+        margin: 0;
+        padding: 0;
+    }
+
+    .thermal-slip__dash,
+    .thermal-slip__footer {
+        border-top: 1px dashed #64748b !important;
+    }
+}

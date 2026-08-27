@@ -1,4 +1,5 @@
 import { formatAmount } from '@/utils/formatAmount';
+import { paymentMethodLabel } from '@/utils/paymentMethod';
 
 /** ຄໍລໍາລາຍງານລາຍຮັບ */
 export function getIncomeColumns() {
@@ -12,7 +13,7 @@ export function getIncomeColumns() {
         {
             key: 'method',
             header: 'ວິທີຊຳລະ',
-            cell: (row) => (row.method === 'cash' ? 'ເງິນສົດ' : row.method === 'transfer' ? 'ເງິນໂອນ' : row.method ?? '—'),
+            cell: (row) => paymentMethodLabel(row.method),
         },
         { key: 'closed_by', header: 'ຜູ້ປິດບິນ' },
         { key: 'total_amount', header: 'ຍອດລວມ', cell: (row) => `${formatAmount(row.total_amount ?? 0)} KIP` },

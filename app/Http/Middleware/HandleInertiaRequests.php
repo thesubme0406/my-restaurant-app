@@ -28,6 +28,9 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'success' => $request->session()->get('success'),
+                'print_queue_ticket' => $request->session()->get('print_queue_ticket'),
+                'print_service_paper' => $request->session()->get('print_service_paper'),
+                'print_purchase_order' => $request->session()->get('print_purchase_order'),
             ],
         ];
     }

@@ -1,16 +1,11 @@
 import { formatAmount } from '@/utils/formatAmount';
+import { paymentMethodLabel } from '@/utils/paymentMethod';
 
 /**
  * @param {string | undefined} method
  */
 function methodLabelLao(method) {
-    if (method === 'cash') {
-        return 'ເງິນສົດ';
-    }
-    if (method === 'transfer') {
-        return 'ເງິນໂອນ';
-    }
-    return method ? String(method) : '—';
+    return paymentMethodLabel(method);
 }
 
 /**
@@ -95,7 +90,7 @@ export function buildPaymentReceiptProps(row, opts = {}) {
         contactLines: [
             'ສະຖານທີ່: ບ້ານ ສະພານທອງ, ເມືອງ: ໄຊເສດຖາ, ນະຄອນຫຼວງວຽງຈັນ',
             '0655561001498',
-            'ໂທ 02055555555 / 0309999999999',
+            'ໂທ: 021 454 565, 020 59 494 465',
         ],
         paymentId: String(row.id ?? '').padStart(2, '0'),
         serviceCode: String(row.service_id ?? '').padStart(2, '0'),
